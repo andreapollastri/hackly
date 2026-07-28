@@ -150,7 +150,13 @@ class ScanResource extends Resource
         return $table
             ->defaultSort('created_at', 'desc')
             ->poll('3s')
-            ->modifyQueryUsing(fn ($query) => $query->with(['asset', 'tasks']))
+            ->modifyQueryUsing(fn ($query) => $query
+                ->with(['asset', 'tasks'])
+                ->withCount([
+                    'findings as high_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::High),
+                    'findings as medium_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Medium),
+                    'findings as low_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Low),
+                ]))
             ->recordUrl(fn (Scan $record): string => static::getUrl('view', ['record' => $record]))
             ->columns([
                 TextColumn::make('id')
@@ -179,11 +185,10 @@ class ScanResource extends Resource
                     ->label('Progress')
                     ->view('filament.tables.columns.scan-progress')
                     ->state(fn (Scan $record) => $record->progressPercent()),
-                TextColumn::make('findings_count')
-                    ->counts('findings')
+                ViewColumn::make('findings_summary')
                     ->label('Findings')
-                    ->badge()
-                    ->color('gray'),
+                    ->view('filament.tables.columns.scan-findings-summary')
+                    ->state(fn (Scan $record) => $record->findingsSeveritySummary()),
                 TextColumn::make('created_at')->since()->sortable()->label('Started'),
             ])
             ->filters([

@@ -93,6 +93,36 @@ class Scan extends Model
         return (int) round(($this->finishedTasksCount() / $total) * 100);
     }
 
+    /**
+     * @return array{high: int, medium: int, low: int}
+     */
+    public function findingsSeveritySummary(): array
+    {
+        if (
+            isset($this->high_findings_count, $this->medium_findings_count, $this->low_findings_count)
+        ) {
+            return [
+                'high' => (int) $this->high_findings_count,
+                'medium' => (int) $this->medium_findings_count,
+                'low' => (int) $this->low_findings_count,
+            ];
+        }
+
+        if ($this->relationLoaded('findings')) {
+            return [
+                'high' => $this->findings->where('severity', FindingSeverity::High)->count(),
+                'medium' => $this->findings->where('severity', FindingSeverity::Medium)->count(),
+                'low' => $this->findings->where('severity', FindingSeverity::Low)->count(),
+            ];
+        }
+
+        return [
+            'high' => $this->findings()->where('severity', FindingSeverity::High)->count(),
+            'medium' => $this->findings()->where('severity', FindingSeverity::Medium)->count(),
+            'low' => $this->findings()->where('severity', FindingSeverity::Low)->count(),
+        ];
+    }
+
     public function refreshStatusFromTasks(): void
     {
         $tasks = $this->tasks()->get();

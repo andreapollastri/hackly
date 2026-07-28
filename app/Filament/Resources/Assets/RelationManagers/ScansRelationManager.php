@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Assets\RelationManagers;
 
+use App\Enums\FindingSeverity;
 use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
 use App\Filament\Resources\Scans\ScanResource;
@@ -33,7 +34,13 @@ class ScansRelationManager extends RelationManager
         return $table
             ->defaultSort('created_at', 'desc')
             ->poll('3s')
-            ->modifyQueryUsing(fn ($query) => $query->with(['tasks']))
+            ->modifyQueryUsing(fn ($query) => $query
+                ->with(['tasks'])
+                ->withCount([
+                    'findings as high_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::High),
+                    'findings as medium_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Medium),
+                    'findings as low_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Low),
+                ]))
             ->recordUrl(fn (Scan $record): string => ScanResource::getUrl('view', ['record' => $record]))
             ->columns([
                 TextColumn::make('id')
@@ -58,11 +65,10 @@ class ScansRelationManager extends RelationManager
                     ->label('Progress')
                     ->view('filament.tables.columns.scan-progress')
                     ->state(fn (Scan $record) => $record->progressPercent()),
-                TextColumn::make('findings_count')
-                    ->counts('findings')
+                ViewColumn::make('findings_summary')
                     ->label('Findings')
-                    ->badge()
-                    ->color('gray'),
+                    ->view('filament.tables.columns.scan-findings-summary')
+                    ->state(fn (Scan $record) => $record->findingsSeveritySummary()),
                 TextColumn::make('created_at')->since()->sortable()->label('Started'),
             ])
             ->filters([
