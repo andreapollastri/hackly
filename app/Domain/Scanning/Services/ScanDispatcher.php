@@ -3,6 +3,7 @@
 namespace App\Domain\Scanning\Services;
 
 use App\Domain\Scanning\DTO\ScannerFinding;
+use App\Enums\FindingSeverity;
 use App\Enums\FindingStatus;
 use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
@@ -195,6 +196,84 @@ class ScanDispatcher
                 ]
             );
         }
+    }
+
+    /**
+     * When a scan finishes, mark findings not re-asserted by completed tasks as Fixed,
+     * and emit a delta summary (new vs fixed) for baseline tracking.
+     *
+     * Reconciliation is keyed by previous scan_task.type (not source) so overlapping
+     * sources (http/dns/nuclei) from different modules do not close each other.
+     */
+    public function reconcileFindingsAfterScan(Scan $scan): void
+    {
+        $scan->loadMissing(['tasks', 'asset']);
+
+        $completedTypes = $scan->tasks
+            ->filter(fn (ScanTask $task) => $task->status === ScanTaskStatus::Completed)
+            ->map(fn (ScanTask $task) => $task->type->value)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($completedTypes === []) {
+            return;
+        }
+
+        $assetId = $scan->asset_id;
+
+        $fixedCount = Finding::query()
+            ->where('asset_id', $assetId)
+            ->where('status', FindingStatus::Open)
+            ->where('category', '!=', 'passed')
+            ->where(function ($query) use ($scan) {
+                $query->whereNull('scan_id')
+                    ->orWhere('scan_id', '!=', $scan->id);
+            })
+            ->whereHas('scanTask', fn ($query) => $query->whereIn('type', $completedTypes))
+            ->update(['status' => FindingStatus::Fixed]);
+
+        $newCount = Finding::query()
+            ->where('asset_id', $assetId)
+            ->where('scan_id', $scan->id)
+            ->where('status', FindingStatus::Open)
+            ->where('category', '!=', 'passed')
+            ->where('created_at', '>=', $scan->started_at ?? $scan->created_at)
+            ->count();
+
+        $touchedThisScan = Finding::query()
+            ->where('asset_id', $assetId)
+            ->where('scan_id', $scan->id)
+            ->where('status', FindingStatus::Open)
+            ->where('category', '!=', 'passed')
+            ->count();
+
+        Finding::query()->updateOrCreate(
+            [
+                'asset_id' => $assetId,
+                'fingerprint' => 'scan-diff-'.$assetId,
+            ],
+            [
+                'scan_id' => $scan->id,
+                'scan_task_id' => null,
+                'severity' => FindingSeverity::Low,
+                'title' => 'Scan delta vs previous baseline',
+                'category' => 'scan_diff',
+                'cve' => null,
+                'source' => 'hackly',
+                'status' => FindingStatus::Open,
+                'evidence' => [
+                    'scan_id' => $scan->id,
+                    'open_findings_this_scan' => $touchedThisScan,
+                    'newly_created_this_scan' => $newCount,
+                    'auto_fixed' => $fixedCount,
+                    'task_types_reconciled' => $completedTypes,
+                ],
+                'description' => $fixedCount > 0 || $newCount > 0
+                    ? "{$newCount} new finding(s) created · {$fixedCount} previous finding(s) auto-marked fixed · {$touchedThisScan} open issue(s) in this scan (excluding passed checks)."
+                    : "No delta: {$touchedThisScan} open issue(s) re-confirmed; nothing auto-fixed.",
+            ]
+        );
     }
 
     /**

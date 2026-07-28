@@ -39,6 +39,7 @@ class AdminPanelProvider extends PanelProvider
                 EmailAuthentication::make(),
             ])
             ->brandName('Hackly')
+            ->favicon(asset('favicon.svg'))
             ->topNavigation()
             ->colors([
                 'primary' => Color::Emerald,

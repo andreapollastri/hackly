@@ -165,29 +165,55 @@ class PathDiscoveryScanner extends AbstractScanner
 
     private function pathSeverity(string $path, int $status): FindingSeverity
     {
-        $sensitive = [
+        if (! in_array($status, [200, 201, 204], true)) {
+            // 401/403 on sensitive paths still worth noting but lower.
+            $sensitiveDenied = [
+                '/.env', '/.git/HEAD', '/.git/config', '/telescope', '/horizon',
+                '/_ignition/execute-solution', '/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php',
+            ];
+
+            return in_array($path, $sensitiveDenied, true)
+                ? FindingSeverity::Low
+                : FindingSeverity::Low;
+        }
+
+        $critical = [
             '/.env',
             '/.env.backup',
             '/.env.old',
             '/.env.local',
             '/.env.production',
+            '/.env.bak',
+            '/.env.save',
             '/.git/HEAD',
-            '/composer.json',
-            '/composer.lock',
-            '/vendor/',
-            '/vendor/composer/installed.json',
+            '/.git/config',
             '/storage/logs/laravel.log',
+            '/backup.sql',
+            '/_ignition/execute-solution',
+            '/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php',
             '/phpinfo.php',
-            '/info.php',
-            '/telescope',
-            '/horizon',
-            '/_debugbar',
-            '/_ignition',
-            '/log-viewer',
         ];
 
-        if (in_array($path, $sensitive, true) && in_array($status, [200, 201, 204], true)) {
-            return FindingSeverity::Medium;
+        $high = [
+            '/telescope',
+            '/horizon',
+            '/pulse',
+            '/nova',
+            '/log-viewer',
+            '/_debugbar',
+            '/_debugbar/open',
+            '/_ignition',
+            '/composer.lock',
+            '/composer.json',
+            '/vendor/composer/installed.json',
+        ];
+
+        if (in_array($path, $critical, true)) {
+            return FindingSeverity::High;
+        }
+
+        if (in_array($path, $high, true)) {
+            return FindingSeverity::High;
         }
 
         return FindingSeverity::Low;

@@ -333,23 +333,92 @@ class MailSecurityScanner extends AbstractScanner
                 );
             }
 
-            preg_match_all('/\b(?:include|a|mx|ptr|exists|redirect):/i', $normalized, $lookups);
-            $lookupCount = count($lookups[0] ?? []);
+            if (preg_match_all('/\binclude:([^\s]+)/i', $normalized, $includes)) {
+                foreach ($includes[1] as $includeHost) {
+                    $includeHost = strtolower(rtrim($includeHost, '.'));
+                    if (str_contains($includeHost, 'permissive')) {
+                        $findings[] = new ScannerFinding(
+                            title: "SPF include looks overly permissive: {$includeHost}",
+                            severity: FindingSeverity::Medium,
+                            source: 'mail',
+                            category: 'spf',
+                            description: 'Includes named "permissive" typically authorize very broad sender ranges. Prefer tight `ip4`/`ip6`/`include` for known ESPs only.',
+                            evidence: ['record' => $normalized, 'include' => $includeHost],
+                            fingerprint: 'mail-spf-permissive-'.$asset->id.'-'.$includeHost,
+                        );
+                    }
+                }
+            }
 
-            if ($lookupCount > 10) {
+            $lookup = $this->countSpfDnsLookups($normalized);
+            $maxLookups = (int) config('hackly.mail_security.spf_max_dns_lookups', 10);
+
+            if ($lookup['count'] > $maxLookups) {
                 $findings[] = new ScannerFinding(
-                    title: 'SPF may exceed 10 DNS-lookup limit',
+                    title: 'SPF exceeds 10 DNS-lookup limit',
                     severity: FindingSeverity::Medium,
                     source: 'mail',
                     category: 'spf',
-                    description: "Counted {$lookupCount} lookup-causing mechanisms. RFC 7208 caps recursive DNS lookups at 10 (PermError beyond that).",
-                    evidence: ['record' => $normalized, 'lookup_mechanisms' => $lookupCount],
+                    description: "Recursive SPF evaluation used {$lookup['count']} DNS lookups (RFC 7208 limit is {$maxLookups} → PermError).",
+                    evidence: [
+                        'record' => $normalized,
+                        'lookup_count' => $lookup['count'],
+                        'chain' => array_slice($lookup['chain'], 0, 30),
+                    ],
                     fingerprint: 'mail-spf-lookups-'.$asset->id.'-'.$index,
                 );
             }
         }
 
         return $findings;
+    }
+
+    /**
+     * Recursively count SPF DNS-lookup mechanisms (include/a/mx/ptr/exists/redirect).
+     *
+     * @return array{count: int, chain: list<string>}
+     */
+    private function countSpfDnsLookups(string $record, int $depth = 0, array &$seen = []): array
+    {
+        $chain = [];
+        $count = 0;
+
+        if ($depth > 8) {
+            return ['count' => 0, 'chain' => []];
+        }
+
+        if (preg_match_all('/\b(include|a|mx|ptr|exists|redirect)(?::(\S+))?/i', $record, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $mech = strtolower($match[1]);
+                $target = isset($match[2]) ? strtolower(rtrim($match[2], '.')) : '';
+                $key = $mech.':'.$target;
+
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $count++;
+                $chain[] = $key;
+
+                if ($mech === 'include' && $target !== '') {
+                    foreach ($this->lookupSpfRecords($target) as $child) {
+                        $nested = $this->countSpfDnsLookups($child, $depth + 1, $seen);
+                        $count += $nested['count'];
+                        $chain = [...$chain, ...$nested['chain']];
+                    }
+                }
+
+                if ($mech === 'redirect' && $target !== '') {
+                    foreach ($this->lookupSpfRecords($target) as $child) {
+                        $nested = $this->countSpfDnsLookups($child, $depth + 1, $seen);
+                        $count += $nested['count'];
+                        $chain = [...$chain, ...$nested['chain']];
+                    }
+                }
+            }
+        }
+
+        return ['count' => $count, 'chain' => $chain];
     }
 
     /**
@@ -402,7 +471,7 @@ class MailSecurityScanner extends AbstractScanner
                 severity: $acceptsMail ? FindingSeverity::Medium : FindingSeverity::Low,
                 source: 'mail',
                 category: 'dkim',
-                description: 'Checked common selectors (google, selector1/2, default, …). Missing DKIM weakens authentication and DMARC alignment for outbound mail.',
+                description: 'Checked common selectors (google, selector1/2, default, Fastmail fm1/fm2/fm3, …). Missing DKIM weakens authentication and DMARC alignment for outbound mail. If you use a provider with custom selectors, set HACKLY_DKIM_SELECTORS.',
                 evidence: [
                     'domain' => $domain,
                     'selectors_checked' => $this->commonDkimSelectors,

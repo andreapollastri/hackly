@@ -71,14 +71,17 @@ return [
         'quick' => [
             'dns_info',
             'mail_security',
+            'tls_check',
             'port_scan',
             'tech_fingerprint',
         ],
         'standard' => [
             'dns_info',
             'mail_security',
+            'tls_check',
             'port_scan',
             'subdomain_enum',
+            'origin_exposure',
             'tech_fingerprint',
             'path_discovery',
             'nuclei_owasp',
@@ -86,8 +89,10 @@ return [
         'deep' => [
             'dns_info',
             'mail_security',
+            'tls_check',
             'port_scan',
             'subdomain_enum',
+            'origin_exposure',
             'tech_fingerprint',
             'path_discovery',
             'nuclei_owasp',
@@ -104,7 +109,9 @@ return [
     'queues' => [
         'dns_info' => 'default',
         'mail_security' => 'default',
+        'tls_check' => 'default',
         'subdomain_enum' => 'default',
+        'origin_exposure' => 'default',
         'port_scan' => 'default',
         'tech_fingerprint' => 'default',
         'path_discovery' => 'default',
@@ -137,10 +144,20 @@ return [
             'trim',
             explode(',', (string) env(
                 'HACKLY_DKIM_SELECTORS',
-                'default,google,selector1,selector2,k1,k2,s1,s2,dkim,mail,smtp,mx,mandrill,cm,s1024,s2048,everlytickey1,zendesk1,zendesk2,protonmail,pm,sig1,mailo,turbo'
+                // fm1/fm2/fm3 = Fastmail; include common ESP selectors to cut false negatives
+                'default,google,selector1,selector2,k1,k2,s1,s2,dkim,mail,smtp,mx,fm1,fm2,fm3,mandrill,cm,s1024,s2048,everlytickey1,zendesk1,zendesk2,protonmail,pm,sig1,mailo,turbo'
             ))
         ))),
         'check_mta_sts_policy' => (bool) env('HACKLY_MAIL_CHECK_MTA_STS', true),
+        'spf_max_dns_lookups' => (int) env('HACKLY_SPF_MAX_LOOKUPS', 10),
+    ],
+
+    'tls' => [
+        'timeout' => (int) env('HACKLY_TLS_TIMEOUT', 90),
+    ],
+
+    'origin_exposure' => [
+        'timeout' => (int) env('HACKLY_ORIGIN_EXPOSURE_TIMEOUT', 180),
     ],
 
     'nuclei' => [
@@ -156,17 +173,39 @@ return [
     'zap' => [
         'timeout' => (int) env('HACKLY_ZAP_TIMEOUT', 900),
         'max_duration_minutes' => (int) env('HACKLY_ZAP_MAX_DURATION', 10),
+        // Plugin IDs kept as informational / noise (never raise above Low).
+        'informational_plugin_ids' => [
+            '10027', // Suspicious Comments
+            '10036', // Server Leaks Version Information
+            '10109', // Modern Web Application
+            '10104', // User Agent Fuzzer
+            '10095', // Backup File Disclosure (often noisy)
+            '120001', // Session Management Response Identified (automation)
+            '111012', // Session Management Response Identified
+        ],
+        // Missing security headers are defense-in-depth — cap at Medium.
+        'header_plugin_ids' => [
+            '10035', // Strict-Transport-Security Header Not Set
+            '10038', // Content Security Policy (CSP) Header Not Set
+            '10021', // X-Content-Type-Options Header Missing
+            '10020', // X-Frame-Options Header Not Set
+            '10016', // Web Browser XSS Protection Not Enabled
+            '10017', // Cross-Domain JavaScript Source File Inclusion
+        ],
+        // Drop known false positives (Laravel XSRF-TOKEN, Cloudflare /cdn-cgi/).
+        'suppress_cookie_names' => ['XSRF-TOKEN'],
+        'suppress_url_substrings' => ['/cdn-cgi/'],
     ],
 
     'tech_fingerprint' => [
-        'timeout' => (int) env('HACKLY_TECH_FINGERPRINT_TIMEOUT', 60),
+        'timeout' => (int) env('HACKLY_TECH_FINGERPRINT_TIMEOUT', 90),
     ],
 
     'path_discovery' => [
         'wordlist' => storage_path('app/wordlists/paths-soft.txt'),
         'timeout' => (int) env('HACKLY_PATH_TIMEOUT', 300),
         'rate_limit' => (int) env('HACKLY_PATH_RATE_LIMIT', 20),
-        'max_paths' => (int) env('HACKLY_PATH_MAX_PATHS', 80),
+        'max_paths' => (int) env('HACKLY_PATH_MAX_PATHS', 100),
         'tags' => env('HACKLY_PATH_TAGS', 'discovery,exposure,config,laravel,php,dotenv'),
     ],
 

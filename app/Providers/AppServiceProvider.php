@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Domain\Scanning\Scanners\DnsScanner;
 use App\Domain\Scanning\Scanners\MailSecurityScanner;
 use App\Domain\Scanning\Scanners\NucleiScanner;
+use App\Domain\Scanning\Scanners\OriginExposureScanner;
 use App\Domain\Scanning\Scanners\PathDiscoveryScanner;
 use App\Domain\Scanning\Scanners\PortScanner;
 use App\Domain\Scanning\Scanners\SubdomainScanner;
 use App\Domain\Scanning\Scanners\TechFingerprintScanner;
+use App\Domain\Scanning\Scanners\TlsScanner;
 use App\Domain\Scanning\Scanners\ZapScanner;
 use App\Domain\Scanning\Services\BinaryRunner;
 use App\Domain\Scanning\Services\DnsOwnershipVerifier;
@@ -29,8 +31,10 @@ class AppServiceProvider extends ServiceProvider
             return new ScannerRegistry([
                 new DnsScanner,
                 new MailSecurityScanner,
+                new TlsScanner,
                 new PortScanner,
                 new SubdomainScanner,
+                new OriginExposureScanner,
                 new TechFingerprintScanner,
                 new PathDiscoveryScanner,
                 new NucleiScanner,

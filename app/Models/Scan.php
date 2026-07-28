@@ -108,18 +108,22 @@ class Scan extends Model
             ];
         }
 
+        $isIssue = fn ($finding): bool => ! in_array($finding->category, ['passed', 'scan_diff'], true);
+
         if ($this->relationLoaded('findings')) {
+            $issues = $this->findings->filter($isIssue);
+
             return [
-                'high' => $this->findings->where('severity', FindingSeverity::High)->count(),
-                'medium' => $this->findings->where('severity', FindingSeverity::Medium)->count(),
-                'low' => $this->findings->where('severity', FindingSeverity::Low)->count(),
+                'high' => $issues->where('severity', FindingSeverity::High)->count(),
+                'medium' => $issues->where('severity', FindingSeverity::Medium)->count(),
+                'low' => $issues->where('severity', FindingSeverity::Low)->count(),
             ];
         }
 
         return [
-            'high' => $this->findings()->where('severity', FindingSeverity::High)->count(),
-            'medium' => $this->findings()->where('severity', FindingSeverity::Medium)->count(),
-            'low' => $this->findings()->where('severity', FindingSeverity::Low)->count(),
+            'high' => $this->findings()->where('severity', FindingSeverity::High)->whereNotIn('category', ['passed', 'scan_diff'])->count(),
+            'medium' => $this->findings()->where('severity', FindingSeverity::Medium)->whereNotIn('category', ['passed', 'scan_diff'])->count(),
+            'low' => $this->findings()->where('severity', FindingSeverity::Low)->whereNotIn('category', ['passed', 'scan_diff'])->count(),
         ];
     }
 
@@ -132,14 +136,22 @@ class Scan extends Model
         }
 
         if ($tasks->every(fn (ScanTask $task) => in_array($task->status->value, ['completed', 'failed', 'skipped'], true))) {
-            $failed = $tasks->contains(fn (ScanTask $task) => $task->status->value === 'failed');
+            $allFailed = $tasks->every(fn (ScanTask $task) => $task->status->value === 'failed');
+            $nextStatus = $allFailed ? ScanStatus::Failed : ScanStatus::Completed;
+            $wasFinished = in_array($this->status, [ScanStatus::Completed, ScanStatus::Failed], true);
 
             $this->update([
-                'status' => $failed && $tasks->every(fn (ScanTask $task) => $task->status->value === 'failed')
-                    ? ScanStatus::Failed
-                    : ScanStatus::Completed,
+                'status' => $nextStatus,
                 'finished_at' => now(),
             ]);
+
+            if (! $wasFinished && $nextStatus === ScanStatus::Completed) {
+                try {
+                    app(\App\Domain\Scanning\Services\ScanDispatcher::class)->reconcileFindingsAfterScan($this->fresh('tasks') ?? $this);
+                } catch (\Throwable) {
+                    // Reconciliation must not break scan completion.
+                }
+            }
 
             return;
         }

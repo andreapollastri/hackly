@@ -110,9 +110,7 @@ class ZapScanner extends AbstractScanner
         $sites = $payload['site'] ?? [$payload];
 
         foreach ($sites as $site) {
-            $alerts = $site['alerts'] ?? $site['alerts'] ?? [];
-
-            if (! is_array($alerts) && isset($payload['site'])) {
+            if (! is_array($site)) {
                 continue;
             }
 
@@ -122,7 +120,10 @@ class ZapScanner extends AbstractScanner
                     if (! is_array($alert)) {
                         continue;
                     }
-                    $findings[] = $this->mapAlert($alert, $asset);
+                    $mapped = $this->mapAlert($alert, $asset);
+                    if ($mapped !== null) {
+                        $findings[] = $mapped;
+                    }
                 }
 
                 continue;
@@ -132,49 +133,124 @@ class ZapScanner extends AbstractScanner
                 if (! is_array($alert)) {
                     continue;
                 }
-                $findings[] = $this->mapAlert($alert, $asset);
+                $mapped = $this->mapAlert($alert, $asset);
+                if ($mapped !== null) {
+                    $findings[] = $mapped;
+                }
             }
         }
 
         // Alternative flat list used by some exporters
         if ($findings === [] && isset($payload['alerts']) && is_array($payload['alerts'])) {
             foreach ($payload['alerts'] as $alert) {
-                if (is_array($alert)) {
-                    $findings[] = $this->mapAlert($alert, $asset);
+                if (! is_array($alert)) {
+                    continue;
+                }
+                $mapped = $this->mapAlert($alert, $asset);
+                if ($mapped !== null) {
+                    $findings[] = $mapped;
                 }
             }
         }
 
-        return array_values(array_filter($findings));
+        return array_values($findings);
     }
 
     /**
      * @param  array<string, mixed>  $alert
      */
-    private function mapAlert(array $alert, Asset $asset): ScannerFinding
+    private function mapAlert(array $alert, Asset $asset): ?ScannerFinding
     {
         $name = (string) ($alert['name'] ?? $alert['alert'] ?? $alert['title'] ?? 'ZAP alert');
         $risk = (string) ($alert['risk'] ?? $alert['riskdesc'] ?? $alert['riskcode'] ?? 'info');
         $pluginId = (string) ($alert['pluginid'] ?? $alert['pluginId'] ?? $alert['alertRef'] ?? md5($name));
+        $url = (string) ($alert['url'] ?? ($alert['instances'][0]['uri'] ?? ''));
+        $description = strip_tags((string) ($alert['desc'] ?? $alert['description'] ?? ''));
+        $evidenceBlob = strtolower($name.' '.$description.' '.$url.' '.json_encode($alert['instances'] ?? []));
+
+        if ($this->shouldSuppress($name, $pluginId, $url, $evidenceBlob)) {
+            return null;
+        }
 
         return new ScannerFinding(
             title: $name,
-            severity: $this->mapRisk($risk),
+            severity: $this->mapRisk($risk, $pluginId, $name, $description),
             source: 'zap',
             category: (string) ($alert['cweid'] ?? 'owasp'),
-            description: strip_tags((string) ($alert['desc'] ?? $alert['description'] ?? '')),
+            description: $description,
             evidence: [
                 'plugin_id' => $pluginId,
-                'url' => $alert['url'] ?? ($alert['instances'][0]['uri'] ?? null),
+                'url' => $url !== '' ? $url : null,
                 'confidence' => $alert['confidence'] ?? null,
                 'solution' => isset($alert['solution']) ? strip_tags((string) $alert['solution']) : null,
+                'zap_risk' => $risk,
             ],
-            fingerprint: 'zap-'.$asset->id.'-'.$pluginId.'-'.md5((string) ($alert['url'] ?? $name)),
+            fingerprint: 'zap-'.$asset->id.'-'.$pluginId.'-'.md5($url !== '' ? $url : $name),
         );
     }
 
-    private function mapRisk(string $risk): FindingSeverity
+    private function shouldSuppress(string $name, string $pluginId, string $url, string $evidenceBlob): bool
     {
-        return FindingSeverity::normalize($risk);
+        $suppressUrls = config('hackly.zap.suppress_url_substrings', ['/cdn-cgi/']);
+        foreach ($suppressUrls as $needle) {
+            if (is_string($needle) && $needle !== '' && str_contains($url, $needle)) {
+                return true;
+            }
+        }
+
+        // Laravel XSRF-TOKEN must be readable by JS — Cookie No HttpOnly is expected.
+        $suppressCookies = config('hackly.zap.suppress_cookie_names', ['XSRF-TOKEN']);
+        $isCookieAlert = str_contains(strtolower($name), 'cookie')
+            || in_array($pluginId, ['10010', '10011', '10054'], true);
+
+        if ($isCookieAlert) {
+            foreach ($suppressCookies as $cookie) {
+                if (is_string($cookie) && $cookie !== '' && str_contains($evidenceBlob, strtolower($cookie))) {
+                    return true;
+                }
+            }
+        }
+
+        // Explicit "nothing to fix" / informational automation noise by name.
+        $noiseNames = [
+            'modern web application',
+            'session management response identified',
+            'user agent fuzzer',
+        ];
+
+        foreach ($noiseNames as $noise) {
+            if (str_contains(strtolower($name), $noise)) {
+                return true;
+            }
+        }
+
+        return str_contains($evidenceBlob, 'nothing to fix');
+    }
+
+    private function mapRisk(string $risk, string $pluginId, string $name, string $description): FindingSeverity
+    {
+        $base = FindingSeverity::normalize($risk);
+        $informationalIds = array_map('strval', config('hackly.zap.informational_plugin_ids', []));
+        $headerIds = array_map('strval', config('hackly.zap.header_plugin_ids', []));
+
+        if (in_array($pluginId, $informationalIds, true)) {
+            return FindingSeverity::Low;
+        }
+
+        $lowerName = strtolower($name.' '.$description);
+
+        if (
+            str_contains($lowerName, 'informational')
+            || str_contains($lowerName, 'nothing to fix')
+        ) {
+            return FindingSeverity::Low;
+        }
+
+        // Missing headers are defense-in-depth — never High from ZAP alone.
+        if (in_array($pluginId, $headerIds, true) || str_contains($lowerName, 'header not set') || str_contains($lowerName, 'header missing')) {
+            return $base === FindingSeverity::High ? FindingSeverity::Medium : $base;
+        }
+
+        return $base;
     }
 }

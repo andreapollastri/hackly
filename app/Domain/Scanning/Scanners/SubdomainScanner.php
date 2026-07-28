@@ -13,6 +13,45 @@ use Illuminate\Support\Facades\Http;
 
 class SubdomainScanner extends AbstractScanner
 {
+    /**
+     * Fingerprints from can-i-take-over-xyz (dangling CNAME → unclaimed service).
+     *
+     * @var list<array{service: string, cname: string, body: string}>
+     */
+    private const TAKEOVER_FINGERPRINTS = [
+        ['service' => 'GitHub Pages', 'cname' => 'github.io', 'body' => "There isn't a GitHub Pages site here"],
+        ['service' => 'Heroku', 'cname' => 'herokuapp.com', 'body' => 'no such app'],
+        ['service' => 'AWS S3', 'cname' => 'amazonaws.com', 'body' => 'NoSuchBucket'],
+        ['service' => 'AWS S3', 'cname' => 's3.amazonaws.com', 'body' => 'The specified bucket does not exist'],
+        ['service' => 'Azure', 'cname' => 'azurewebsites.net', 'body' => '404 Web Site not found'],
+        ['service' => 'Azure', 'cname' => 'cloudapp.azure.com', 'body' => '404 Web Site not found'],
+        ['service' => 'Cloudfront', 'cname' => 'cloudfront.net', 'body' => 'Bad request'],
+        ['service' => 'Zendesk', 'cname' => 'zendesk.com', 'body' => 'Help Center Closed'],
+        ['service' => 'Shopify', 'cname' => 'myshopify.com', 'body' => 'Sorry, this shop is currently unavailable'],
+        ['service' => 'Surge', 'cname' => 'surge.sh', 'body' => 'project not found'],
+        ['service' => 'Pantheon', 'cname' => 'pantheonsite.io', 'body' => '404 error unknown site'],
+        ['service' => 'Netlify', 'cname' => 'netlify.app', 'body' => 'Not Found - Request ID'],
+        ['service' => 'Netlify', 'cname' => 'netlify.com', 'body' => 'Not Found - Request ID'],
+        ['service' => 'Ghost', 'cname' => 'ghost.io', 'body' => 'The thing you were looking for is no longer here'],
+        ['service' => 'Readme', 'cname' => 'readme.io', 'body' => 'Project doesnt exist'],
+        ['service' => 'Tumblr', 'cname' => 'tumblr.com', 'body' => "There's nothing here"],
+        ['service' => 'WordPress.com', 'cname' => 'wordpress.com', 'body' => 'Do you want to register'],
+        ['service' => 'Cargo', 'cname' => 'cargocollective.com', 'body' => '404 Not Found'],
+        ['service' => 'Feedpress', 'cname' => 'feedpress.me', 'body' => 'The feed has not been found'],
+        ['service' => 'Help Juice', 'cname' => 'helpjuice.com', 'body' => "We could not find what you're looking for"],
+        ['service' => 'Help Scout', 'cname' => 'helpscoutdocs.com', 'body' => 'No settings were found for this company'],
+        ['service' => 'JetBrains', 'cname' => 'youtrack.cloud', 'body' => 'is not a registered InCloud YouTrack'],
+        ['service' => 'Ngrok', 'cname' => 'ngrok.io', 'body' => 'ngrok.io not found'],
+        ['service' => 'SmugMug', 'cname' => 'smugmug.com', 'body' => 'Page Not Found'],
+        ['service' => 'Statuspage', 'cname' => 'statuspage.io', 'body' => 'Status page targeted'],
+        ['service' => 'Strikingly', 'cname' => 'strikinglydns.com', 'body' => 'page not found'],
+        ['service' => 'Uberflip', 'cname' => 'uberflip.com', 'body' => 'Non-hub domain'],
+        ['service' => 'Unbounce', 'cname' => 'unbouncepages.com', 'body' => 'The requested URL was not found'],
+        ['service' => 'UserVoice', 'cname' => 'uservoice.com', 'body' => 'This UserVoice subdomain is currently available'],
+        ['service' => 'Webflow', 'cname' => 'webflow.io', 'body' => 'The page you are looking for doesn\'t exist'],
+        ['service' => 'Worksites', 'cname' => 'worksites.net', 'body' => 'Hello! Sorry, but the website'],
+    ];
+
     public function type(): ScanTaskType
     {
         return ScanTaskType::SubdomainEnum;
@@ -117,9 +156,77 @@ class SubdomainScanner extends AbstractScanner
                 ],
                 fingerprint: 'subdomain-'.$asset->id.'-'.$host,
             );
+
+            $takeover = $this->detectTakeover($asset, $host, $cnames);
+            if ($takeover !== null) {
+                $findings[] = $takeover;
+            }
         }
 
         return $findings;
+    }
+
+    /**
+     * @param  list<string>  $cnames
+     */
+    private function detectTakeover(Asset $asset, string $host, array $cnames): ?ScannerFinding
+    {
+        if ($cnames === []) {
+            return null;
+        }
+
+        $cnameHaystack = strtolower(implode(' ', $cnames));
+        $matched = null;
+
+        foreach (self::TAKEOVER_FINGERPRINTS as $fp) {
+            if (str_contains($cnameHaystack, strtolower($fp['cname']))) {
+                $matched = $fp;
+                break;
+            }
+        }
+
+        if ($matched === null) {
+            return null;
+        }
+
+        $body = '';
+
+        try {
+            $response = Http::timeout(10)
+                ->withOptions(['allow_redirects' => true, 'verify' => false])
+                ->withHeaders(['User-Agent' => 'HacklySoftScanner/1.0'])
+                ->get('https://'.$host);
+            $body = $response->body();
+        } catch (\Throwable) {
+            try {
+                $response = Http::timeout(8)
+                    ->withOptions(['allow_redirects' => true, 'verify' => false])
+                    ->withHeaders(['User-Agent' => 'HacklySoftScanner/1.0'])
+                    ->get('http://'.$host);
+                $body = $response->body();
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        if (! str_contains($body, $matched['body'])) {
+            return null;
+        }
+
+        return new ScannerFinding(
+            title: "Possible subdomain takeover: {$host} ({$matched['service']})",
+            severity: FindingSeverity::High,
+            source: 'dns',
+            category: 'subdomain_takeover',
+            description: "{$host} CNAMEs to {$matched['service']} and the HTTP body matches an unclaimed-service fingerprint. Claim the resource or remove the dangling DNS record.",
+            evidence: [
+                'host' => $host,
+                'cnames' => $cnames,
+                'service' => $matched['service'],
+                'fingerprint' => $matched['body'],
+            ],
+            fingerprint: 'subdomain-takeover-'.$asset->id.'-'.$host,
+        );
     }
 
     /**

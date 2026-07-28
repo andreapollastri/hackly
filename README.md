@@ -25,13 +25,16 @@ Built with **Laravel 13** and **Filament 5**.
 
 | Task | Tool | Profiles |
 |------|------|----------|
-| DNS / WHOIS | `dig`, `whois` | quick · standard · deep |
+| DNS / WHOIS | `dig`, `whois` (+ DNSSEC, CAA, AXFR, wildcard) | quick · standard · deep |
+| Mail security | SPF / DKIM / DMARC / MTA-STS / TLS-RPT | quick · standard · deep |
+| TLS check | cert expiry, hostname, legacy protocols | quick · standard · deep |
 | Port scan | `nmap` | quick · standard · deep |
-| Tech fingerprint | soft HTTP (PHP/Laravel headers & cookies) | quick · standard · deep |
-| Subdomain enum | soft wordlist + CT logs | standard · deep |
-| Path discovery | soft wordlist / Nuclei (incl. Laravel exposures) | standard · deep |
+| Tech fingerprint | headers, cookies, CORS, APP_DEBUG | quick · standard · deep |
+| Subdomain enum | wordlist + CT logs + takeover fingerprints | standard · deep |
+| Origin exposure | direct-IP Host-header probes | standard · deep |
+| Path discovery | soft wordlist / Nuclei (Laravel exposures) | standard · deep |
 | Vulnerability templates | `nuclei` (+ laravel/php/dotenv tags) | standard · deep |
-| DAST baseline | OWASP ZAP | deep |
+| DAST baseline | OWASP ZAP (calibrated severities) | deep |
 
 ---
 
