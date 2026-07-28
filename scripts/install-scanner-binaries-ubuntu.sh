@@ -3,9 +3,10 @@
 #
 # Installs: dig (dnsutils), whois, nmap, nuclei, OWASP ZAP (+ OpenJDK)
 #
-# Usage:
+# Usage (must use bash — not sh/dash):
 #   sudo bash scripts/install-scanner-binaries-ubuntu.sh
 #
+# Do NOT run with: sudo sh …  (Ubuntu's sh is dash and will fail)
 # Optional env:
 #   HACKLY_BIN_DIR=/usr/local/bin   # nuclei symlink destination
 #   HACKLY_ZAP_DIR=/opt/zaproxy     # ZAP install directory
@@ -84,8 +85,8 @@ install_nuclei() {
   json="$(curl -fsSL "$api")"
 
   local tag url
-  tag="$(jq -r '.tag_name // empty' <<<"$json")"
-  url="$(jq -r --arg p "$asset_pattern" '.assets[] | select(.name | test($p)) | .browser_download_url' <<<"$json" | head -n1)"
+  tag="$(printf '%s' "$json" | jq -r '.tag_name // empty')"
+  url="$(printf '%s' "$json" | jq -r --arg p "$asset_pattern" '.assets[] | select(.name | test($p)) | .browser_download_url' | head -n1)"
 
   [[ -n "$tag" && -n "$url" ]] || die "Could not resolve nuclei download URL for arch=${arch}"
 
@@ -117,8 +118,8 @@ install_zap() {
   json="$(curl -fsSL "$api")"
 
   local tag url
-  tag="$(jq -r '.tag_name // empty' <<<"$json")"
-  url="$(jq -r '.assets[] | select(.name | test("Linux\\.tar\\.gz$")) | .browser_download_url' <<<"$json" | head -n1)"
+  tag="$(printf '%s' "$json" | jq -r '.tag_name // empty')"
+  url="$(printf '%s' "$json" | jq -r '.assets[] | select(.name | test("Linux\\.tar\\.gz$")) | .browser_download_url' | head -n1)"
 
   if [[ -z "$url" || "$arch" == "arm64" ]]; then
     if command -v snap >/dev/null 2>&1; then
