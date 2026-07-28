@@ -24,7 +24,7 @@ class EditAsset extends EditRecord
         /** @var Asset $record */
         $record = $this->record;
 
-        if ($record->wasChanged(['value', 'type']) && ! $record->isVerified()) {
+        if ($record->wasChanged('value') && ! $record->isVerified()) {
             Notification::make()
                 ->title('Verification reset')
                 ->body('Target changed — issue a new DNS token and verify ownership again before scanning.')

@@ -5,6 +5,7 @@ namespace App\Domain\Scanning\Scanners;
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
 use App\Domain\Scanning\Services\BinaryRunner;
+use App\Domain\Scanning\Services\TargetGuard;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
 use App\Models\Asset;
@@ -45,6 +46,11 @@ class PortScanner extends AbstractScanner
         // Finish before Process::timeout kills the job; leave headroom for XML flush.
         $hostTimeout = max(60, $this->timeoutSeconds() - 60);
 
+        $targets = app(TargetGuard::class)->resolvePublicFacingIps($asset->value);
+        if ($targets === []) {
+            $targets = [$asset->value];
+        }
+
         return [
             $nmap,
             '-sV',
@@ -69,7 +75,7 @@ class PortScanner extends AbstractScanner
             $xmlPath,
             '-oN',
             $outputPath.'.txt',
-            $asset->value,
+            ...$targets,
         ];
     }
 
@@ -107,6 +113,8 @@ class PortScanner extends AbstractScanner
         $openPorts = [];
 
         foreach ($xml->host as $host) {
+            $hostAddr = (string) ($host->address['addr'] ?? $asset->value);
+
             foreach ($host->ports->port ?? [] as $port) {
                 $state = (string) ($port->state['state'] ?? '');
 
@@ -123,6 +131,7 @@ class PortScanner extends AbstractScanner
                 $conf = (int) ($port->service['conf'] ?? 0);
 
                 $openPorts[] = [
+                    'host' => $hostAddr,
                     'port' => (int) $portId,
                     'protocol' => $protocol,
                     'service' => $service,
@@ -159,13 +168,14 @@ class PortScanner extends AbstractScanner
         }
 
         foreach ($openPorts as $openPort) {
+            $hostAddr = $openPort['host'];
             $portId = (string) $openPort['port'];
             $protocol = $openPort['protocol'];
             $service = $openPort['service'];
             $product = $openPort['product'];
             $version = $openPort['version'];
 
-            $title = "Open port {$portId}/{$protocol} ({$service})";
+            $title = "Open port {$portId}/{$protocol} on {$hostAddr} ({$service})";
             $severity = in_array((int) $portId, [21, 23, 445, 3389, 5900], true)
                 ? FindingSeverity::Medium
                 : FindingSeverity::Low;
@@ -177,6 +187,7 @@ class PortScanner extends AbstractScanner
                 category: 'open_port',
                 description: trim("Service fingerprint: {$product} {$version}"),
                 evidence: [
+                    'host' => $hostAddr,
                     'port' => (int) $portId,
                     'protocol' => $protocol,
                     'service' => $service,
@@ -185,7 +196,7 @@ class PortScanner extends AbstractScanner
                     'method' => $openPort['method'],
                     'conf' => $openPort['conf'],
                 ],
-                fingerprint: "nmap-port-{$asset->id}-{$protocol}-{$portId}",
+                fingerprint: "nmap-port-{$asset->id}-{$hostAddr}-{$protocol}-{$portId}",
             );
         }
 
@@ -197,8 +208,8 @@ class PortScanner extends AbstractScanner
      * and drop identical catch-all fingerprints repeated across many ports
      * (typical of VPN / transparent proxy intercept).
      *
-     * @param  list<array{port: int, protocol: string, service: string, product: string, version: string, method: string, conf: int}>  $openPorts
-     * @return list<array{port: int, protocol: string, service: string, product: string, version: string, method: string, conf: int}>
+     * @param  list<array{host: string, port: int, protocol: string, service: string, product: string, version: string, method: string, conf: int}>  $openPorts
+     * @return list<array{host: string, port: int, protocol: string, service: string, product: string, version: string, method: string, conf: int}>
      */
     private function filterMiddleboxFalsePositives(array $openPorts): array
     {

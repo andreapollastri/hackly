@@ -5,7 +5,6 @@ namespace App\Domain\Scanning\Scanners;
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
 use App\Domain\Scanning\Services\BinaryRunner;
-use App\Enums\AssetType;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
 use App\Models\Asset;
@@ -17,11 +16,6 @@ class SubdomainScanner extends AbstractScanner
     public function type(): ScanTaskType
     {
         return ScanTaskType::SubdomainEnum;
-    }
-
-    public function supports(Asset $asset): bool
-    {
-        return $asset->type === AssetType::Domain;
     }
 
     public function timeoutSeconds(): int

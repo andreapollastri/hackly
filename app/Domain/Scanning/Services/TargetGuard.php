@@ -2,7 +2,6 @@
 
 namespace App\Domain\Scanning\Services;
 
-use App\Enums\AssetType;
 use App\Models\Asset;
 use InvalidArgumentException;
 
@@ -16,11 +15,13 @@ class TargetGuard
             throw new InvalidArgumentException('Asset value is empty.');
         }
 
-        if ($asset->type === AssetType::Ip) {
-            $this->assertValidIp($value);
-        } else {
-            $this->assertValidDomain($value);
+        if (filter_var($value, FILTER_VALIDATE_IP) !== false) {
+            throw new InvalidArgumentException(
+                'Raw IP targets are not supported. Enter a domain; Hackly resolves and checks its A/AAAA addresses.'
+            );
         }
+
+        $this->assertValidDomain($value);
 
         if (config('hackly.allowlist_only')) {
             $allowlist = array_map('strtolower', config('hackly.allowlist', []));
@@ -30,15 +31,18 @@ class TargetGuard
             }
         }
 
-        if (! config('hackly.allow_private_targets') && $this->isPrivateOrLocal($value, $asset->type)) {
+        if (config('hackly.allow_private_targets')) {
+            return;
+        }
+
+        if ($this->isLocalHostname($value)) {
             throw new InvalidArgumentException("Private/local targets are blocked: {$value}");
         }
-    }
 
-    private function assertValidIp(string $value): void
-    {
-        if (filter_var($value, FILTER_VALIDATE_IP) === false) {
-            throw new InvalidArgumentException("Invalid IP address: {$value}");
+        foreach ($this->resolvePublicFacingIps($value) as $ip) {
+            if ($this->isPrivateOrReservedIp($ip)) {
+                throw new InvalidArgumentException("Private/local targets are blocked: {$value} → {$ip}");
+            }
         }
     }
 
@@ -49,30 +53,55 @@ class TargetGuard
         }
     }
 
-    private function isPrivateOrLocal(string $value, AssetType $type): bool
+    private function isLocalHostname(string $value): bool
     {
-        if (in_array(strtolower($value), ['localhost', 'localhost.localdomain'], true)) {
-            return true;
-        }
+        return in_array(strtolower($value), ['localhost', 'localhost.localdomain'], true);
+    }
 
-        if ($type === AssetType::Ip) {
-            return ! filter_var(
-                $value,
-                FILTER_VALIDATE_IP,
-                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
-            );
-        }
-
-        $resolved = gethostbyname($value);
-
-        if ($resolved === $value) {
-            return false;
-        }
-
-        return ! filter_var(
-            $resolved,
+    private function isPrivateOrReservedIp(string $ip): bool
+    {
+        return filter_var(
+            $ip,
             FILTER_VALIDATE_IP,
             FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
-        );
+        ) === false;
+    }
+
+    /**
+     * Resolve A + AAAA for the domain (same IPs scanners will hit).
+     *
+     * @return list<string>
+     */
+    public function resolvePublicFacingIps(string $domain): array
+    {
+        $ips = [];
+
+        if (function_exists('dns_get_record')) {
+            foreach ([DNS_A, DNS_AAAA] as $type) {
+                $records = @dns_get_record($domain, $type);
+
+                if (! is_array($records)) {
+                    continue;
+                }
+
+                foreach ($records as $record) {
+                    $ip = $record['ip'] ?? $record['ipv6'] ?? null;
+
+                    if (is_string($ip) && filter_var($ip, FILTER_VALIDATE_IP) !== false) {
+                        $ips[] = $ip;
+                    }
+                }
+            }
+        }
+
+        if ($ips === []) {
+            $resolved = gethostbyname($domain);
+
+            if ($resolved !== $domain && filter_var($resolved, FILTER_VALIDATE_IP) !== false) {
+                $ips[] = $resolved;
+            }
+        }
+
+        return array_values(array_unique($ips));
     }
 }

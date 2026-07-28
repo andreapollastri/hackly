@@ -5,7 +5,7 @@ namespace App\Domain\Scanning\Scanners;
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
 use App\Domain\Scanning\Services\BinaryRunner;
-use App\Enums\AssetType;
+use App\Domain\Scanning\Services\TargetGuard;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
 use App\Models\Asset;
@@ -16,11 +16,6 @@ class DnsScanner extends AbstractScanner
     public function type(): ScanTaskType
     {
         return ScanTaskType::DnsInfo;
-    }
-
-    public function supports(Asset $asset): bool
-    {
-        return $asset->type === AssetType::Domain;
     }
 
     public function timeoutSeconds(): int
@@ -56,6 +51,23 @@ class DnsScanner extends AbstractScanner
             evidence: ['records' => array_slice($records, 0, 100)],
             fingerprint: 'dns-records-'.$asset->id,
         );
+
+        $resolvedIps = app(TargetGuard::class)->resolvePublicFacingIps($asset->value);
+
+        if ($resolvedIps !== []) {
+            $findings[] = new ScannerFinding(
+                title: 'Resolved IP addresses',
+                severity: FindingSeverity::Low,
+                source: 'dns',
+                category: 'ip',
+                description: 'A/AAAA addresses included with this domain: '.implode(', ', $resolvedIps),
+                evidence: [
+                    'domain' => $asset->value,
+                    'ips' => $resolvedIps,
+                ],
+                fingerprint: 'dns-ips-'.$asset->id,
+            );
+        }
 
         $whois = $this->runWhois($asset->value);
 

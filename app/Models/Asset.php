@@ -25,8 +25,14 @@ class Asset extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (Asset $asset): void {
+            $asset->type = AssetType::Domain;
+        });
+
         static::updating(function (Asset $asset): void {
-            if (! $asset->isDirty(['value', 'type'])) {
+            $asset->type = AssetType::Domain;
+
+            if (! $asset->isDirty('value')) {
                 return;
             }
 
@@ -76,10 +82,6 @@ class Asset extends Model
 
     public function httpBaseUrl(): string
     {
-        if ($this->isDomain()) {
-            return 'https://'.$this->value;
-        }
-
-        return 'http://'.$this->value;
+        return 'https://'.$this->value;
     }
 }

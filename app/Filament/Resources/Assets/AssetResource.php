@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Assets;
 use App\Domain\Scanning\Services\DnsOwnershipVerifier;
 use App\Domain\Scanning\Services\ScanDispatcher;
 use App\Enums\AssetStatus;
-use App\Enums\AssetType;
 use App\Enums\ScanProfile;
 use App\Enums\ScanTaskStatus;
 use App\Filament\Resources\Assets\Pages\EditAsset;
@@ -50,32 +49,22 @@ class AssetResource extends Resource
         return $schema
             ->columns(1)
             ->components([
-                Select::make('type')
-                    ->label('Type')
-                    ->options(collect(AssetType::cases())->mapWithKeys(fn ($c) => [$c->value => strtoupper($c->value)]))
-                    ->required()
-                    ->native(false)
-                    ->disabled(fn (?Asset $record): bool => (bool) $record?->isVerified())
-                    ->helperText(fn (?Asset $record): ?string => $record?->isVerified()
-                        ? 'Locked after verification. Create a new target to scan a different domain or IP.'
-                        : null),
                 TextInput::make('value')
-                    ->label('Domain / IP')
+                    ->label('Domain')
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true)
                     ->disabled(fn (?Asset $record): bool => (bool) $record?->isVerified())
                     ->helperText(fn (?Asset $record): ?string => $record?->isVerified()
-                        ? 'Locked after verification. Changing it would require a new ownership check.'
-                        : 'Changing the target clears any pending verification token.'),
+                        ? 'Locked after verification. Create a new target to scan a different domain.'
+                        : 'FQDN only (e.g. example.com). Resolved A/AAAA IPs are checked and scanned with the domain.'),
             ]);
     }
 
     public static function infolist(Schema $schema): Schema
     {
         return $schema->components([
-            TextEntry::make('value')->label('Target')->size('lg')->weight('bold'),
-            TextEntry::make('type')->badge(),
+            TextEntry::make('value')->label('Domain')->size('lg')->weight('bold'),
             TextEntry::make('status')->badge(),
             TextEntry::make('verified_at')
                 ->label('DNS verified')
@@ -91,11 +80,10 @@ class AssetResource extends Resource
             ->recordUrl(fn (Asset $record): string => static::getUrl('view', ['record' => $record]))
             ->columns([
                 TextColumn::make('value')
-                    ->label('Target')
+                    ->label('Domain')
                     ->searchable()
                     ->sortable()
-                    ->weight('medium')
-                    ->description(fn (Asset $record) => strtoupper($record->type->value)),
+                    ->weight('medium'),
                 IconColumn::make('verified_at')
                     ->label('Verified')
                     ->boolean()
@@ -122,7 +110,6 @@ class AssetResource extends Resource
                 TextColumn::make('updated_at')->since()->label('Updated'),
             ])
             ->filters([
-                SelectFilter::make('type')->options(collect(AssetType::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
                 SelectFilter::make('status')->options([
                     AssetStatus::Active->value => 'Active',
                     AssetStatus::Paused->value => 'Disabled',
@@ -133,7 +120,7 @@ class AssetResource extends Resource
                     ->label('DNS token')
                     ->icon(Heroicon::OutlinedKey)
                     ->color('gray')
-                    ->visible(fn (Asset $record) => $record->isDomain() && ! $record->isVerified())
+                    ->visible(fn (Asset $record) => ! $record->isVerified())
                     ->modalHeading('Publish this TXT record')
                     ->modalDescription('Add this DNS TXT record at your registrar or DNS provider. Wait for propagation, then click Verify DNS.')
                     ->modalWidth(Width::Medium)
@@ -183,9 +170,7 @@ class AssetResource extends Resource
 
                             Notification::make()
                                 ->title('Target verified')
-                                ->body($record->isDomain()
-                                    ? 'DNS TXT ownership confirmed. You can start scans.'
-                                    : 'IP ownership confirmed via authorization note.')
+                                ->body('DNS TXT ownership confirmed. You can start scans.')
                                 ->success()
                                 ->send();
                         } catch (\Throwable $e) {

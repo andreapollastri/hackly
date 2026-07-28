@@ -12,13 +12,10 @@ class DnsOwnershipVerifier
 {
     public function issueToken(Asset $asset): string
     {
-        if ($asset->type !== AssetType::Domain) {
-            throw new InvalidArgumentException('DNS ownership verification is only available for domain targets.');
-        }
-
         $token = 'hackly-verify='.Str::random(40);
 
         $asset->update([
+            'type' => AssetType::Domain,
             'verification_token' => $token,
             'verified_at' => null,
         ]);
@@ -28,12 +25,6 @@ class DnsOwnershipVerifier
 
     public function verify(Asset $asset): bool
     {
-        if ($asset->type === AssetType::Ip) {
-            $asset->update(['verified_at' => now()]);
-
-            return true;
-        }
-
         $token = trim((string) $asset->verification_token);
 
         if ($token === '') {
@@ -52,7 +43,10 @@ class DnsOwnershipVerifier
             );
         }
 
-        $asset->update(['verified_at' => now()]);
+        $asset->update([
+            'type' => AssetType::Domain,
+            'verified_at' => now(),
+        ]);
 
         return true;
     }
@@ -63,14 +57,8 @@ class DnsOwnershipVerifier
             return;
         }
 
-        if ($asset->type === AssetType::Domain) {
-            throw new InvalidArgumentException(
-                'Target is not DNS-verified. Publish the TXT token and run Verify DNS before starting a scan.'
-            );
-        }
-
         throw new InvalidArgumentException(
-            'Target is not verified. Confirm ownership before starting a scan.'
+            'Target is not DNS-verified. Publish the TXT token and run Verify DNS before starting a scan.'
         );
     }
 

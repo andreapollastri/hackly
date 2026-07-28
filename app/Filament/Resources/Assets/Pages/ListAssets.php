@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Assets\Pages;
 
 use App\Enums\AssetStatus;
+use App\Enums\AssetType;
 use App\Filament\Resources\Assets\AssetResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
@@ -19,6 +20,7 @@ class ListAssets extends ListRecords
                 ->label('New target')
                 ->modalWidth(Width::Medium)
                 ->mutateFormDataUsing(function (array $data): array {
+                    $data['type'] = AssetType::Domain->value;
                     $data['created_by'] = auth()->id();
                     $data['status'] = AssetStatus::Active->value;
 
