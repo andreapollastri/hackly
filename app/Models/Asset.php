@@ -23,6 +23,18 @@ class Asset extends Model
         'created_by',
     ];
 
+    protected static function booted(): void
+    {
+        static::updating(function (Asset $asset): void {
+            if (! $asset->isDirty(['value', 'type'])) {
+                return;
+            }
+
+            $asset->verified_at = null;
+            $asset->verification_token = null;
+        });
+    }
+
     protected function casts(): array
     {
         return [

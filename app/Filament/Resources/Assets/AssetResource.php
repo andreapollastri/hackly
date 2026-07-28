@@ -54,12 +54,20 @@ class AssetResource extends Resource
                     ->label('Type')
                     ->options(collect(AssetType::cases())->mapWithKeys(fn ($c) => [$c->value => strtoupper($c->value)]))
                     ->required()
-                    ->native(false),
+                    ->native(false)
+                    ->disabled(fn (?Asset $record): bool => (bool) $record?->isVerified())
+                    ->helperText(fn (?Asset $record): ?string => $record?->isVerified()
+                        ? 'Locked after verification. Create a new target to scan a different domain or IP.'
+                        : null),
                 TextInput::make('value')
                     ->label('Domain / IP')
                     ->required()
                     ->maxLength(255)
-                    ->unique(ignoreRecord: true),
+                    ->unique(ignoreRecord: true)
+                    ->disabled(fn (?Asset $record): bool => (bool) $record?->isVerified())
+                    ->helperText(fn (?Asset $record): ?string => $record?->isVerified()
+                        ? 'Locked after verification. Changing it would require a new ownership check.'
+                        : 'Changing the target clears any pending verification token.'),
             ]);
     }
 
