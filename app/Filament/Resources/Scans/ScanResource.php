@@ -14,10 +14,8 @@ use App\Models\Scan;
 use App\Models\ScanTask;
 use BackedEnum;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -193,19 +191,6 @@ class ScanResource extends Resource
             ->filters([
                 SelectFilter::make('profile')->options(collect(ScanProfile::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
                 SelectFilter::make('status')->options(collect(ScanStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
-            ])
-            ->recordActions([
-                Action::make('exportPdf')
-                    ->label('PDF')
-                    ->icon(Heroicon::OutlinedDocumentArrowDown)
-                    ->color('gray')
-                    ->action(fn (Scan $record): StreamedResponse => static::downloadReport($record)),
-                Action::make('exportMarkdown')
-                    ->label('MD')
-                    ->icon(Heroicon::OutlinedDocumentText)
-                    ->color('gray')
-                    ->action(fn (Scan $record): StreamedResponse => static::downloadMarkdownReport($record)),
-                ViewAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
