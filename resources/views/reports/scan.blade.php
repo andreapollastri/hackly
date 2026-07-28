@@ -274,6 +274,7 @@
         </tbody>
     </table>
 
+    <div style="page-break-before: always;"></div>
     <div class="section-title">Findings</div>
     @if ($findings->isEmpty())
         <div class="empty">No findings were reported for this scan.</div>
