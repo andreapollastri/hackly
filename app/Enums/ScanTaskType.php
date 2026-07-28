@@ -5,6 +5,7 @@ namespace App\Enums;
 enum ScanTaskType: string
 {
     case DnsInfo = 'dns_info';
+    case MailSecurity = 'mail_security';
     case PortScan = 'port_scan';
     case SubdomainEnum = 'subdomain_enum';
     case TechFingerprint = 'tech_fingerprint';

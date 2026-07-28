@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Domain\Scanning\Scanners\DnsScanner;
+use App\Domain\Scanning\Scanners\MailSecurityScanner;
 use App\Domain\Scanning\Scanners\NucleiScanner;
 use App\Domain\Scanning\Scanners\PathDiscoveryScanner;
 use App\Domain\Scanning\Scanners\PortScanner;
@@ -27,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ScannerRegistry::class, function () {
             return new ScannerRegistry([
                 new DnsScanner,
+                new MailSecurityScanner,
                 new PortScanner,
                 new SubdomainScanner,
                 new TechFingerprintScanner,

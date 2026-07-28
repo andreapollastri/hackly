@@ -70,11 +70,13 @@ return [
     'profiles' => [
         'quick' => [
             'dns_info',
+            'mail_security',
             'port_scan',
             'tech_fingerprint',
         ],
         'standard' => [
             'dns_info',
+            'mail_security',
             'port_scan',
             'subdomain_enum',
             'tech_fingerprint',
@@ -83,6 +85,7 @@ return [
         ],
         'deep' => [
             'dns_info',
+            'mail_security',
             'port_scan',
             'subdomain_enum',
             'tech_fingerprint',
@@ -100,6 +103,7 @@ return [
 
     'queues' => [
         'dns_info' => 'default',
+        'mail_security' => 'default',
         'subdomain_enum' => 'default',
         'port_scan' => 'default',
         'tech_fingerprint' => 'default',
@@ -125,6 +129,18 @@ return [
         'wordlist' => storage_path('app/wordlists/subdomains-soft.txt'),
         'timeout' => (int) env('HACKLY_SUBDOMAIN_TIMEOUT', 180),
         'ct_logs_enabled' => (bool) env('HACKLY_CT_LOGS_ENABLED', true),
+    ],
+
+    'mail_security' => [
+        'timeout' => (int) env('HACKLY_MAIL_SECURITY_TIMEOUT', 120),
+        'dkim_selectors' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env(
+                'HACKLY_DKIM_SELECTORS',
+                'default,google,selector1,selector2,k1,k2,s1,s2,dkim,mail,smtp,mx,mandrill,cm,s1024,s2048,everlytickey1,zendesk1,zendesk2,protonmail,pm,sig1,mailo,turbo'
+            ))
+        ))),
+        'check_mta_sts_policy' => (bool) env('HACKLY_MAIL_CHECK_MTA_STS', true),
     ],
 
     'nuclei' => [

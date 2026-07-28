@@ -193,7 +193,7 @@ class AssetResource extends Resource
                     ->form([
                         Select::make('profile')
                             ->options([
-                                ScanProfile::Quick->value => 'Quick — DNS + ports',
+                                ScanProfile::Quick->value => 'Quick — DNS + mail + ports',
                                 ScanProfile::Standard->value => 'Standard — + subdomains, paths, Nuclei',
                                 ScanProfile::Deep->value => 'Deep — + ZAP baseline',
                             ])
