@@ -20,7 +20,7 @@ readonly class ScannerFinding
         public ?string $fingerprint = null,
     ) {}
 
-    public function resolvedFingerprint(int $assetId): string
+    public function resolvedFingerprint(string $assetId): string
     {
         return $this->fingerprint ?? sha1($assetId.'|'.$this->source.'|'.$this->title.'|'.$this->category);
     }

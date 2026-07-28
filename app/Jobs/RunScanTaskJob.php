@@ -19,7 +19,13 @@ class RunScanTaskJob implements ShouldQueue
 
     public int $tries = 3;
 
-    public function __construct(public int $scanTaskId) {}
+    /** Queue worker kill timeout; must be a property (timeout() is ignored by Laravel). */
+    public int $timeout;
+
+    public function __construct(public string $scanTaskId)
+    {
+        $this->timeout = (int) config('hackly.queue.job_timeout', 960);
+    }
 
     public function backoff(): array
     {
@@ -128,8 +134,28 @@ class RunScanTaskJob implements ShouldQueue
         $task->scan?->refreshStatusFromTasks();
     }
 
-    public function timeout(): int
+    public function failed(?Throwable $e): void
     {
-        return 960;
+        $task = ScanTask::query()->with('scan')->find($this->scanTaskId);
+
+        if (! $task || in_array($task->status, [ScanTaskStatus::Completed, ScanTaskStatus::Failed, ScanTaskStatus::Skipped], true)) {
+            return;
+        }
+
+        $message = $e?->getMessage() ?: 'Queue job failed.';
+
+        Log::warning('hackly.task.failed', [
+            'task_id' => $task->id,
+            'type' => $task->type->value,
+            'error' => $message,
+        ]);
+
+        $task->update([
+            'status' => ScanTaskStatus::Failed,
+            'finished_at' => now(),
+            'error_message' => $message,
+        ]);
+
+        $task->scan?->refreshStatusFromTasks();
     }
 }

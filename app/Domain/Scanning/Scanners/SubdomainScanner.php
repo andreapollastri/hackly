@@ -4,6 +4,7 @@ namespace App\Domain\Scanning\Scanners;
 
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
+use App\Domain\Scanning\Services\BinaryRunner;
 use App\Enums\AssetType;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
@@ -56,7 +57,7 @@ class SubdomainScanner extends AbstractScanner
             ? array_values(array_filter(array_map('trim', file($wordlistPath, FILE_IGNORE_NEW_LINES))))
             : ['www', 'mail', 'api', 'dev', 'staging', 'admin', 'cdn', 'vpn', 'test'];
 
-        $runner = app(\App\Domain\Scanning\Services\BinaryRunner::class);
+        $runner = app(BinaryRunner::class);
         $dig = $this->binary('dig');
 
         foreach (array_slice($words, 0, 50) as $word) {
@@ -87,7 +88,7 @@ class SubdomainScanner extends AbstractScanner
         if ($ns !== []) {
             $findings[] = new ScannerFinding(
                 title: 'Authoritative nameservers',
-                severity: FindingSeverity::Info,
+                severity: FindingSeverity::Low,
                 source: 'dns',
                 category: 'nameservers',
                 evidence: ['ns' => $ns],
@@ -98,7 +99,7 @@ class SubdomainScanner extends AbstractScanner
         foreach ($discovered as $host => $ips) {
             $findings[] = new ScannerFinding(
                 title: "Subdomain discovered: {$host}",
-                severity: FindingSeverity::Info,
+                severity: FindingSeverity::Low,
                 source: 'dns',
                 category: 'subdomain',
                 evidence: ['host' => $host, 'ips' => $ips],

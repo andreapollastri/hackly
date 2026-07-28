@@ -2,6 +2,7 @@
 
 namespace App\Domain\Scanning\Services;
 
+use App\Domain\Scanning\DTO\ScannerFinding;
 use App\Enums\FindingStatus;
 use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
@@ -30,10 +31,10 @@ class ScanDispatcher
         $this->guard->assertAllowed($asset);
         $this->ownershipVerifier->assertVerified($asset);
 
-        $limiter = TargetRateLimiter::fromDefaultPolicy();
+        $limiter = TargetRateLimiter::make();
 
         if ($profile === ScanProfile::Deep) {
-            $cooldownHours = $limiter->policy()->deep_cooldown_hours;
+            $cooldownHours = $limiter->deepCooldownHours();
             $recentDeep = Scan::query()
                 ->where('asset_id', $asset->id)
                 ->where('profile', ScanProfile::Deep)
@@ -168,7 +169,7 @@ class ScanDispatcher
     }
 
     /**
-     * @param  list<\App\Domain\Scanning\DTO\ScannerFinding>  $findings
+     * @param  list<ScannerFinding>  $findings
      */
     public function persistFindings(ScanTask $task, array $findings): void
     {

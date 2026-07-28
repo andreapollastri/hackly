@@ -10,10 +10,6 @@ use RuntimeException;
 
 class DnsOwnershipVerifier
 {
-    public function __construct(
-        private readonly BinaryRunner $runner,
-    ) {}
-
     public function issueToken(Asset $asset): string
     {
         if ($asset->type !== AssetType::Domain) {
@@ -83,33 +79,30 @@ class DnsOwnershipVerifier
      */
     public function lookupTxtRecords(string $domain): array
     {
-        $dig = (string) config('hackly.binaries.dig', 'dig');
+        $domain = trim($domain);
 
-        if (! $this->runner->binaryExists($dig)) {
-            throw new RuntimeException("Cannot verify DNS: dig binary not available ({$dig}).");
+        if ($domain === '' || ! function_exists('dns_get_record')) {
+            throw new RuntimeException('DNS TXT lookup failed: dns_get_record is not available.');
         }
 
-        $result = $this->runner->run([
-            $dig,
-            '+short',
-            'TXT',
-            $domain,
-        ], 30);
+        $raw = @dns_get_record($domain, DNS_TXT);
 
-        if ($result->exitCode !== 0 && trim($result->stdout) === '') {
-            throw new RuntimeException('DNS TXT lookup failed: '.trim($result->stderr ?: 'no response'));
+        if ($raw === false) {
+            throw new RuntimeException("DNS TXT lookup failed for {$domain}.");
         }
 
         $records = [];
 
-        foreach (preg_split('/\r\n|\r|\n/', $result->stdout) ?: [] as $line) {
-            $line = trim($line);
+        foreach ($raw as $row) {
+            if (! empty($row['entries']) && is_array($row['entries'])) {
+                $records[] = implode('', $row['entries']);
 
-            if ($line === '') {
                 continue;
             }
 
-            $records[] = trim($line, " \t\"'");
+            if (isset($row['txt']) && is_string($row['txt']) && $row['txt'] !== '') {
+                $records[] = $row['txt'];
+            }
         }
 
         return array_values($records);

@@ -3,6 +3,7 @@
 namespace App\Domain\Scanning\Services;
 
 use App\Domain\Scanning\DTO\BinaryResult;
+use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use RuntimeException;
@@ -29,10 +30,33 @@ class BinaryRunner
             'timeout' => $timeout,
         ]);
 
-        $result = Process::timeout($timeout)->run($command);
+        try {
+            $result = Process::timeout($timeout)->run($command);
+            $stdout = $result->output();
+            $stderr = $result->errorOutput();
+            $exitCode = $result->exitCode() ?? 1;
+        } catch (ProcessTimedOutException $e) {
+            $stdout = $e->result->output();
+            $stderr = trim($e->result->errorOutput()."\n".$e->getMessage());
+            $exitCode = $e->result->exitCode() ?? 124;
 
-        $stdout = $result->output();
-        $stderr = $result->errorOutput();
+            $hasArtifacts = $outputPath !== null && (
+                is_file($outputPath)
+                || is_file($outputPath.'.xml')
+                || is_file($outputPath.'.txt')
+                || is_file($outputPath.'.json')
+            );
+
+            Log::warning('hackly.binary.timeout', [
+                'command' => $command,
+                'timeout' => $timeout,
+                'has_artifacts' => $hasArtifacts,
+            ]);
+
+            if (! $hasArtifacts && trim($stdout) === '' && trim($e->result->errorOutput()) === '') {
+                throw $e;
+            }
+        }
 
         if ($outputPath !== null) {
             $dir = dirname($outputPath);
@@ -44,7 +68,7 @@ class BinaryRunner
         }
 
         return new BinaryResult(
-            exitCode: $result->exitCode() ?? 1,
+            exitCode: $exitCode,
             stdout: $stdout,
             stderr: $stderr,
             outputPath: $outputPath,

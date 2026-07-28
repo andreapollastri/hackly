@@ -7,27 +7,24 @@ use App\Domain\Scanning\Services\ScanDispatcher;
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
 use App\Enums\ScanProfile;
+use App\Enums\ScanTaskStatus;
 use App\Filament\Resources\Assets\Pages\EditAsset;
 use App\Filament\Resources\Assets\Pages\ListAssets;
 use App\Filament\Resources\Assets\Pages\ViewAsset;
-use App\Filament\Resources\Assets\RelationManagers\FindingsRelationManager;
 use App\Models\Asset;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
@@ -50,8 +47,10 @@ class AssetResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Select::make('type')
+                    ->label('Type')
                     ->options(collect(AssetType::cases())->mapWithKeys(fn ($c) => [$c->value => strtoupper($c->value)]))
                     ->required()
                     ->native(false),
@@ -60,11 +59,6 @@ class AssetResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
-                Select::make('status')
-                    ->options(collect(AssetStatus::cases())->mapWithKeys(fn ($c) => [$c->value => ucfirst($c->value)]))
-                    ->default(AssetStatus::Active->value)
-                    ->required()
-                    ->native(false),
             ]);
     }
 
@@ -79,17 +73,13 @@ class AssetResource extends Resource
                 ->dateTime()
                 ->placeholder('Not verified')
                 ->color(fn ($state) => $state ? 'success' : 'danger'),
-            TextEntry::make('verification_token')
-                ->label('TXT token')
-                ->copyable()
-                ->placeholder('Generate a token first')
-                ->columnSpanFull(),
         ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->recordUrl(fn (Asset $record): string => static::getUrl('view', ['record' => $record]))
             ->columns([
                 TextColumn::make('value')
                     ->label('Target')
@@ -105,12 +95,18 @@ class AssetResource extends Resource
                     ->falseIcon(Heroicon::OutlinedShieldExclamation)
                     ->trueColor('success')
                     ->falseColor('danger'),
-                TextColumn::make('status')->badge(),
-                TextColumn::make('findings_count')
-                    ->counts('findings')
-                    ->label('Findings')
-                    ->badge()
-                    ->color('warning'),
+                ToggleColumn::make('status')
+                    ->label('Active')
+                    ->onColor('success')
+                    ->offColor('gray')
+                    ->getStateUsing(fn (Asset $record): bool => $record->status === AssetStatus::Active)
+                    ->updateStateUsing(function (Asset $record, mixed $state): bool {
+                        $record->update([
+                            'status' => $state ? AssetStatus::Active : AssetStatus::Paused,
+                        ]);
+
+                        return (bool) $state;
+                    }),
                 TextColumn::make('scans_count')
                     ->counts('scans')
                     ->label('Scans'),
@@ -118,36 +114,60 @@ class AssetResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('type')->options(collect(AssetType::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
-                SelectFilter::make('status')->options(collect(AssetStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
+                SelectFilter::make('status')->options([
+                    AssetStatus::Active->value => 'Active',
+                    AssetStatus::Paused->value => 'Disabled',
+                ]),
             ])
             ->recordActions([
                 Action::make('issueToken')
                     ->label('DNS token')
                     ->icon(Heroicon::OutlinedKey)
                     ->color('gray')
-                    ->visible(fn (Asset $record) => $record->isDomain())
-                    ->action(function (Asset $record) {
+                    ->visible(fn (Asset $record) => $record->isDomain() && ! $record->isVerified())
+                    ->modalHeading('Publish this TXT record')
+                    ->modalDescription('Add this DNS TXT record at your registrar or DNS provider. Wait for propagation, then click Verify DNS.')
+                    ->modalWidth(Width::Medium)
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Done')
+                    ->mountUsing(function (Action $action, ?Schema $schema, Asset $record): void {
                         try {
                             $token = app(DnsOwnershipVerifier::class)->issueToken($record);
 
-                            Notification::make()
-                                ->title('Publish this TXT record')
-                                ->body("Host: {$record->value}\nValue: {$token}")
-                                ->success()
-                                ->persistent()
-                                ->send();
+                            $schema?->fill([
+                                'host' => $record->value,
+                                'type' => 'TXT',
+                                'value' => $token,
+                            ]);
                         } catch (\Throwable $e) {
                             Notification::make()
                                 ->title('Cannot issue token')
                                 ->body($e->getMessage())
                                 ->danger()
                                 ->send();
+
+                            $action->halt();
                         }
-                    }),
+                    })
+                    ->form([
+                        TextInput::make('host')
+                            ->label('Host')
+                            ->readOnly()
+                            ->copyable(),
+                        TextInput::make('type')
+                            ->label('Type')
+                            ->readOnly()
+                            ->copyable(),
+                        TextInput::make('value')
+                            ->label('Value')
+                            ->readOnly()
+                            ->copyable(),
+                    ]),
                 Action::make('verifyDns')
                     ->label('Verify DNS')
                     ->icon(Heroicon::OutlinedShieldCheck)
                     ->color('success')
+                    ->visible(fn (Asset $record) => ! $record->isVerified())
                     ->action(function (Asset $record) {
                         try {
                             app(DnsOwnershipVerifier::class)->verify($record);
@@ -195,10 +215,10 @@ class AssetResource extends Resource
                                 auth()->user(),
                             );
 
-                            $queued = $scan->tasks->where('status', \App\Enums\ScanTaskStatus::Queued)->count();
+                            $queued = $scan->tasks->where('status', ScanTaskStatus::Queued)->count();
 
                             Notification::make()
-                                ->title("Scan #{$scan->id} started")
+                                ->title("Scan {$scan->id} started")
                                 ->body("{$queued} task(s) dispatched to the queue. Watch progress under Scans.")
                                 ->success()
                                 ->send();
@@ -210,22 +230,12 @@ class AssetResource extends Resource
                                 ->send();
                         }
                     }),
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
             ]);
     }
 
     public static function getRelations(): array
     {
-        return [
-            FindingsRelationManager::class,
-        ];
+        return [];
     }
 
     public static function getPages(): array

@@ -4,6 +4,7 @@ namespace App\Domain\Scanning\Scanners;
 
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
+use App\Domain\Scanning\Services\BinaryRunner;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
 use App\Models\Asset;
@@ -32,7 +33,7 @@ class NucleiScanner extends AbstractScanner
         $this->ensureOutputDir($outputPath);
 
         $nuclei = $this->binary('nuclei');
-        $runner = app(\App\Domain\Scanning\Services\BinaryRunner::class);
+        $runner = app(BinaryRunner::class);
 
         if (! $runner->binaryExists($nuclei)) {
             throw new RuntimeException('Nuclei binary is not available. Install nuclei or skip nuclei_owasp tasks.');
@@ -119,12 +120,6 @@ class NucleiScanner extends AbstractScanner
 
     private function mapSeverity(string $severity): FindingSeverity
     {
-        return match (strtolower($severity)) {
-            'critical' => FindingSeverity::Critical,
-            'high' => FindingSeverity::High,
-            'medium' => FindingSeverity::Medium,
-            'low' => FindingSeverity::Low,
-            default => FindingSeverity::Info,
-        };
+        return FindingSeverity::normalize($severity);
     }
 }

@@ -2,13 +2,17 @@
 
 namespace App\Filament\Resources\Scans;
 
+use App\Enums\FindingSeverity;
 use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
 use App\Filament\Resources\Scans\Pages\ManageScans;
+use App\Filament\Resources\Scans\Pages\ViewScan;
+use App\Filament\Resources\Scans\RelationManagers\FindingsRelationManager;
 use App\Models\Scan;
 use BackedEnum;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -20,6 +24,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ScanResource extends Resource
 {
@@ -39,7 +44,7 @@ class ScanResource extends Resource
     public static function infolist(Schema $schema): Schema
     {
         return $schema->components([
-            TextEntry::make('id')->label('Scan'),
+            TextEntry::make('id')->label('Scan')->copyable(),
             TextEntry::make('asset.value')->label('Target'),
             TextEntry::make('profile')->badge(),
             TextEntry::make('status')->badge()
@@ -73,11 +78,17 @@ class ScanResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('id', 'desc')
+            ->defaultSort('created_at', 'desc')
             ->poll('3s')
             ->modifyQueryUsing(fn ($query) => $query->with(['asset', 'tasks']))
+            ->recordUrl(fn (Scan $record): string => static::getUrl('view', ['record' => $record]))
             ->columns([
-                TextColumn::make('id')->sortable()->label('#'),
+                TextColumn::make('id')
+                    ->label('UUID')
+                    ->copyable()
+                    ->limit(8)
+                    ->tooltip(fn (Scan $record) => $record->id)
+                    ->searchable(),
                 TextColumn::make('asset.value')
                     ->label('Target')
                     ->searchable()
@@ -102,7 +113,7 @@ class ScanResource extends Resource
                     ->counts('findings')
                     ->label('Findings')
                     ->badge()
-                    ->color('warning'),
+                    ->color('gray'),
                 TextColumn::make('created_at')->since()->sortable()->label('Started'),
             ])
             ->filters([
@@ -110,8 +121,12 @@ class ScanResource extends Resource
                 SelectFilter::make('status')->options(collect(ScanStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
             ])
             ->recordActions([
+                Action::make('exportPdf')
+                    ->label('PDF')
+                    ->icon(Heroicon::OutlinedDocumentArrowDown)
+                    ->color('gray')
+                    ->action(fn (Scan $record): StreamedResponse => static::downloadReport($record)),
                 ViewAction::make(),
-                DeleteAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -120,15 +135,57 @@ class ScanResource extends Resource
             ]);
     }
 
+    public static function getRelations(): array
+    {
+        return [
+            FindingsRelationManager::class,
+        ];
+    }
+
     public static function getPages(): array
     {
         return [
             'index' => ManageScans::route('/'),
+            'view' => ViewScan::route('/{record}'),
         ];
     }
 
     public static function canCreate(): bool
     {
         return false;
+    }
+
+    public static function downloadReport(Scan $scan): StreamedResponse
+    {
+        $scan->load(['asset', 'tasks', 'findings', 'requester']);
+
+        $findings = $scan->findings
+            ->sortByDesc(fn ($finding) => match ($finding->severity->value) {
+                'high' => 3,
+                'medium' => 2,
+                default => 1,
+            })
+            ->values();
+
+        $summary = [
+            'high' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::High)->count(),
+            'medium' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::Medium)->count(),
+            'low' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::Low)->count(),
+        ];
+
+        $pdf = Pdf::loadView('reports.scan', [
+            'scan' => $scan,
+            'findings' => $findings,
+            'summary' => $summary,
+            'generatedAt' => now(),
+        ])->setPaper('a4');
+
+        $filename = 'hackly-scan-'.substr($scan->id, 0, 8).'.pdf';
+
+        return response()->streamDownload(
+            fn () => print ($pdf->output()),
+            $filename,
+            ['Content-Type' => 'application/pdf'],
+        );
     }
 }

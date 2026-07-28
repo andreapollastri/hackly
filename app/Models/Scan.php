@@ -5,12 +5,15 @@ namespace App\Models;
 use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
 use App\Enums\ScanTaskStatus;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Scan extends Model
 {
+    use HasUuids;
+
     protected $fillable = [
         'asset_id',
         'profile',

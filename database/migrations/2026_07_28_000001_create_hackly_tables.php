@@ -9,39 +9,23 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('assets', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('type'); // domain|ip
             $table->string('value')->unique();
             $table->string('status')->default('active'); // active|paused|archived
             $table->text('authorization_note')->nullable();
             $table->timestamp('verified_at')->nullable();
             $table->string('verification_token')->nullable();
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
-        });
-
-        Schema::create('scan_policies', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->boolean('is_default')->default(false);
-            $table->unsignedInteger('per_target_per_minute')->default(2);
-            $table->unsignedInteger('global_concurrent')->default(5);
-            $table->unsignedInteger('jitter_seconds')->default(45);
-            $table->unsignedInteger('task_spacing_seconds')->default(30);
-            $table->unsignedInteger('deep_cooldown_hours')->default(24);
-            $table->boolean('quiet_hours_enabled')->default(false);
-            $table->unsignedTinyInteger('quiet_hours_start')->default(0);
-            $table->unsignedTinyInteger('quiet_hours_end')->default(6);
-            $table->string('timezone')->default('UTC');
+            $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
 
         Schema::create('scans', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('asset_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('asset_id')->constrained()->cascadeOnDelete();
             $table->string('profile'); // quick|standard|deep
             $table->string('status')->default('pending'); // pending|running|completed|failed|cancelled
-            $table->foreignId('requested_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignUuid('requested_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('finished_at')->nullable();
             $table->text('error_message')->nullable();
@@ -51,8 +35,8 @@ return new class extends Migration
         });
 
         Schema::create('scan_tasks', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('scan_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('scan_id')->constrained()->cascadeOnDelete();
             $table->string('type');
             $table->string('queue')->default('default');
             $table->string('status')->default('pending'); // pending|queued|running|completed|failed|skipped
@@ -71,11 +55,11 @@ return new class extends Migration
         });
 
         Schema::create('findings', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('asset_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('scan_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('scan_task_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('severity'); // info|low|medium|high|critical
+            $table->uuid('id')->primary();
+            $table->foreignUuid('asset_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('scan_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignUuid('scan_task_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('severity'); // low|medium|high
             $table->string('title');
             $table->string('category')->nullable();
             $table->string('cve')->nullable();
@@ -91,7 +75,7 @@ return new class extends Migration
         });
 
         Schema::create('rate_limit_buckets', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('target_key')->unique();
             $table->unsignedInteger('tokens_used')->default(0);
             $table->timestamp('window_starts_at');
@@ -105,7 +89,6 @@ return new class extends Migration
         Schema::dropIfExists('findings');
         Schema::dropIfExists('scan_tasks');
         Schema::dropIfExists('scans');
-        Schema::dropIfExists('scan_policies');
         Schema::dropIfExists('assets');
     }
 };

@@ -4,6 +4,7 @@ namespace App\Domain\Scanning\Scanners;
 
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
+use App\Domain\Scanning\Services\BinaryRunner;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
 use App\Models\Asset;
@@ -32,16 +33,23 @@ class ZapScanner extends AbstractScanner
         $this->ensureOutputDir($outputPath);
 
         $zap = $this->binary('zap');
-        $runner = app(\App\Domain\Scanning\Services\BinaryRunner::class);
+        $runner = app(BinaryRunner::class);
 
         if (! $runner->binaryExists($zap)) {
             throw new RuntimeException('OWASP ZAP binary is not available. Install ZAP or skip zap_baseline tasks.');
         }
 
         $reportJson = $outputPath.'.json';
+        $homeDir = $outputPath.'.zap-home';
         $maxDuration = (int) config('hackly.zap.max_duration_minutes', 10);
 
+        if (! is_dir($homeDir) && ! mkdir($homeDir, 0755, true) && ! is_dir($homeDir)) {
+            throw new RuntimeException("Unable to create ZAP home directory: {$homeDir}");
+        }
+
         // ZAP baseline / docker-style CLI: zap-baseline.py or zap.sh -cmd
+        // Always pass an isolated -dir so concurrent/retry runs do not collide on
+        // the default ~/Library/Application Support/ZAP (or ~/.ZAP) home lock.
         if (str_contains($zap, 'baseline') || str_ends_with($zap, '.py')) {
             return [
                 $zap,
@@ -51,11 +59,15 @@ class ZapScanner extends AbstractScanner
                 $reportJson,
                 '-m',
                 (string) $maxDuration,
+                '-z',
+                "-dir {$homeDir}",
             ];
         }
 
         return [
             $zap,
+            '-dir',
+            $homeDir,
             '-cmd',
             '-quickurl',
             $asset->httpBaseUrl(),
@@ -75,7 +87,7 @@ class ZapScanner extends AbstractScanner
             if (trim($result->stdout.$result->stderr) !== '') {
                 $findings[] = new ScannerFinding(
                     title: 'ZAP baseline finished (see raw output)',
-                    severity: FindingSeverity::Info,
+                    severity: FindingSeverity::Low,
                     source: 'zap',
                     category: 'baseline',
                     evidence: [
@@ -163,14 +175,6 @@ class ZapScanner extends AbstractScanner
 
     private function mapRisk(string $risk): FindingSeverity
     {
-        $risk = strtolower($risk);
-
-        return match (true) {
-            str_contains($risk, '3') || str_contains($risk, 'high') => FindingSeverity::High,
-            str_contains($risk, '2') || str_contains($risk, 'medium') => FindingSeverity::Medium,
-            str_contains($risk, '1') || str_contains($risk, 'low') => FindingSeverity::Low,
-            str_contains($risk, '4') || str_contains($risk, 'critical') => FindingSeverity::Critical,
-            default => FindingSeverity::Info,
-        };
+        return FindingSeverity::normalize($risk);
     }
 }

@@ -6,11 +6,12 @@ use App\Domain\Scanning\Services\ScanDispatcher;
 use App\Enums\ScanProfile;
 use App\Models\Asset;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 
 class HacklyScanCommand extends Command
 {
     protected $signature = 'hackly:scan
-        {asset : Target ID or domain/IP value}
+        {asset : Target UUID or domain/IP value}
         {--profile=standard : quick|standard|deep}';
 
     protected $description = 'Create a scan for a verified, authorized target and dispatch jobs immediately';
@@ -19,7 +20,11 @@ class HacklyScanCommand extends Command
     {
         $key = (string) $this->argument('asset');
         $asset = Asset::query()
-            ->when(ctype_digit($key), fn ($q) => $q->where('id', (int) $key), fn ($q) => $q->where('value', $key))
+            ->when(
+                Str::isUuid($key),
+                fn ($q) => $q->where('id', $key),
+                fn ($q) => $q->where('value', $key),
+            )
             ->first();
 
         if (! $asset) {
@@ -38,7 +43,7 @@ class HacklyScanCommand extends Command
         }
 
         $queued = $scan->tasks()->where('status', 'queued')->count();
-        $this->info("Scan #{$scan->id} started — {$queued} job(s) dispatched to the queue.");
+        $this->info("Scan {$scan->id} started — {$queued} job(s) dispatched to the queue.");
         $this->comment('Keep `php artisan queue:work` running to process tasks.');
 
         return self::SUCCESS;

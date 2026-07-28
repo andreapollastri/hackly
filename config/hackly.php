@@ -49,7 +49,7 @@ return [
         'per_target_per_minute' => (int) env('HACKLY_PER_TARGET_PER_MINUTE', 2),
         'global_concurrent' => (int) env('HACKLY_GLOBAL_CONCURRENT', 5),
         'jitter_seconds' => (int) env('HACKLY_JITTER_SECONDS', 5),
-        'nmap_delay_ms' => (int) env('HACKLY_NMAP_DELAY_MS', 200),
+        'nmap_delay_ms' => (int) env('HACKLY_NMAP_DELAY_MS', 100),
         'task_spacing_seconds' => (int) env('HACKLY_TASK_SPACING_SECONDS', 10),
         'deep_cooldown_hours' => (int) env('HACKLY_DEEP_COOLDOWN_HOURS', 24),
     ],
@@ -111,9 +111,10 @@ return [
     */
 
     'nmap' => [
-        'top_ports' => (int) env('HACKLY_NMAP_TOP_PORTS', 100),
-        'timing' => env('HACKLY_NMAP_TIMING', 'T2'),
-        'timeout' => (int) env('HACKLY_NMAP_TIMEOUT', 300),
+        'top_ports' => (int) env('HACKLY_NMAP_TOP_PORTS', 50),
+        // T3 + light -sV finishes reliably; T2 + 100 ports often exceeds process timeouts on filtered hosts.
+        'timing' => env('HACKLY_NMAP_TIMING', 'T3'),
+        'timeout' => (int) env('HACKLY_NMAP_TIMEOUT', 840),
     ],
 
     'subdomain' => [
@@ -141,5 +142,19 @@ return [
     ],
 
     'storage_path' => storage_path('app/scans'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Queue
+    |--------------------------------------------------------------------------
+    |
+    | job_timeout must exceed the longest scanner timeout (ZAP defaults to 900s).
+    | DB_QUEUE_RETRY_AFTER / REDIS_QUEUE_RETRY_AFTER must be higher than this.
+    |
+    */
+
+    'queue' => [
+        'job_timeout' => (int) env('HACKLY_JOB_TIMEOUT', 960),
+    ],
 
 ];

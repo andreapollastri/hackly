@@ -3,32 +3,28 @@
 namespace App\Domain\Scanning\Services;
 
 use App\Models\RateLimitBucket;
-use App\Models\ScanPolicy;
 use App\Models\ScanTask;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 class TargetRateLimiter
 {
-    public function __construct(
-        private readonly ScanPolicy $policy,
-    ) {}
-
-    public static function fromDefaultPolicy(): self
+    public static function make(): self
     {
-        return new self(ScanPolicy::defaultPolicy());
+        return new self;
     }
 
     public function withinQuietHours(?Carbon $at = null): bool
     {
-        if (! $this->policy->quiet_hours_enabled) {
+        if (! (bool) config('hackly.quiet_hours.enabled')) {
             return false;
         }
 
-        $at ??= now($this->policy->timezone);
-        $hour = (int) $at->timezone($this->policy->timezone)->format('G');
-        $start = (int) $this->policy->quiet_hours_start;
-        $end = (int) $this->policy->quiet_hours_end;
+        $timezone = (string) config('hackly.quiet_hours.timezone', 'UTC');
+        $at ??= now($timezone);
+        $hour = (int) $at->timezone($timezone)->format('G');
+        $start = (int) config('hackly.quiet_hours.start');
+        $end = (int) config('hackly.quiet_hours.end');
 
         if ($start === $end) {
             return false;
@@ -47,11 +43,11 @@ class TargetRateLimiter
             return false;
         }
 
-        if ($this->globalConcurrent() >= $this->policy->global_concurrent) {
+        if ($this->globalConcurrent() >= (int) config('hackly.rate_limits.global_concurrent')) {
             return false;
         }
 
-        return $this->tokensUsed($targetKey) < $this->policy->per_target_per_minute;
+        return $this->tokensUsed($targetKey) < (int) config('hackly.rate_limits.per_target_per_minute');
     }
 
     public function hit(string $targetKey): void
@@ -105,18 +101,18 @@ class TargetRateLimiter
 
     public function jitterSeconds(): int
     {
-        $max = max(0, (int) $this->policy->jitter_seconds);
+        $max = max(0, (int) config('hackly.rate_limits.jitter_seconds'));
 
         return $max === 0 ? 0 : random_int(0, $max);
     }
 
     public function taskSpacingSeconds(): int
     {
-        return (int) $this->policy->task_spacing_seconds;
+        return (int) config('hackly.rate_limits.task_spacing_seconds');
     }
 
-    public function policy(): ScanPolicy
+    public function deepCooldownHours(): int
     {
-        return $this->policy;
+        return (int) config('hackly.rate_limits.deep_cooldown_hours');
     }
 }

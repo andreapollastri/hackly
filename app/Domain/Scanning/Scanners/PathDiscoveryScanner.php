@@ -4,6 +4,7 @@ namespace App\Domain\Scanning\Scanners;
 
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
+use App\Domain\Scanning\Services\BinaryRunner;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
 use App\Models\Asset;
@@ -34,7 +35,7 @@ class PathDiscoveryScanner extends AbstractScanner
         // Prefer nuclei http discovery if available; otherwise a no-op dig used as placeholder —
         // actual soft path probing happens in parse() with rate-limited HTTP HEAD.
         $nuclei = $this->binary('nuclei');
-        $runner = app(\App\Domain\Scanning\Services\BinaryRunner::class);
+        $runner = app(BinaryRunner::class);
 
         if ($runner->binaryExists($nuclei)) {
             $jsonl = $outputPath.'.jsonl';
@@ -105,7 +106,7 @@ class PathDiscoveryScanner extends AbstractScanner
                 if (in_array($status, [200, 201, 204, 301, 302, 307, 401, 403], true)) {
                     $findings[] = new ScannerFinding(
                         title: "Path discovered: {$path} (HTTP {$status})",
-                        severity: in_array($status, [401, 403], true) ? FindingSeverity::Low : FindingSeverity::Info,
+                        severity: FindingSeverity::Low,
                         source: 'http',
                         category: 'path_discovery',
                         evidence: [
@@ -151,12 +152,6 @@ class PathDiscoveryScanner extends AbstractScanner
 
     private function mapSeverity(string $severity): FindingSeverity
     {
-        return match (strtolower($severity)) {
-            'critical' => FindingSeverity::Critical,
-            'high' => FindingSeverity::High,
-            'medium' => FindingSeverity::Medium,
-            'low' => FindingSeverity::Low,
-            default => FindingSeverity::Info,
-        };
+        return FindingSeverity::normalize($severity);
     }
 }

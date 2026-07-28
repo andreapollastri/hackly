@@ -4,12 +4,12 @@ Authorized attack-surface & application security scanning platform built with **
 
 Hackly orchestrates rate-limited scan tasks against **targets you own or are explicitly authorized to test**, invoking system binaries (`nmap`, `dig`, `whois`, `nuclei`, OWASP ZAP) and normalizing results into findings.
 
-> **Legal notice:** Only scan targets you are authorized to assess. Unauthorized scanning may be illegal. DNS ownership verification + an authorization note are required before a scan can start.
+> **Legal notice:** Only scan targets you are authorized to assess. Unauthorized scanning may be illegal. DNS ownership verification is required before a scan can start.
 
 ## Features
 
 - **Targets** inventory (domains / IPs) with DNS TXT ownership verification
-- Findings nested under each target
+- Scans with nested findings (LOW / MEDIUM / HIGH) and PDF report export
 - Scan profiles: `quick`, `standard`, `deep`
 - Jobs dispatched **immediately** on scan start (database queue — no Horizon)
 - Live progress bar on Scans (auto-refresh)
@@ -48,7 +48,7 @@ Run app + queue worker:
 php artisan serve
 
 # Terminal 2 — queue worker (required for scans)
-php artisan queue:work --tries=1 --timeout=960
+php artisan queue:work
 
 # Optional — scheduler (cleanup only)
 php artisan schedule:work
@@ -61,11 +61,11 @@ Or use `composer run dev` (serve + queue + logs + vite).
 ### Verify a domain target, then scan
 
 1. Open `/admin` → **Targets**
-2. Create a target with an authorization note
+2. Create a target
 3. Click **DNS token** → publish the TXT record on the domain
 4. Click **Verify DNS** (must succeed before scanning)
 5. Click **Start scan** → jobs are dispatched immediately
-6. Watch **Scans** for the live progress bar; open a target to see its **Findings**
+6. Watch **Scans** for the live progress bar; open a scan to review findings and export the PDF report
 
 ### CLI
 
@@ -84,12 +84,20 @@ php artisan hackly:scan example.com --profile=standard
 
 ## Configuration
 
+Rate limits, quiet hours, scan profiles and scanner settings live in `config/hackly.php` (overridable via `.env`):
+
 ```env
 QUEUE_CONNECTION=database
 CACHE_STORE=database
 HACKLY_ALLOWLIST_ONLY=false
 HACKLY_ALLOWLIST=example.com,203.0.113.10
 HACKLY_ALLOW_PRIVATE_TARGETS=true
+HACKLY_PER_TARGET_PER_MINUTE=2
+HACKLY_GLOBAL_CONCURRENT=5
+HACKLY_JITTER_SECONDS=5
+HACKLY_TASK_SPACING_SECONDS=10
+HACKLY_DEEP_COOLDOWN_HOURS=24
+HACKLY_QUIET_HOURS_ENABLED=false
 ```
 
 In production, set `HACKLY_ALLOW_PRIVATE_TARGETS=false` and prefer `HACKLY_ALLOWLIST_ONLY=true`.
@@ -97,7 +105,7 @@ In production, set `HACKLY_ALLOW_PRIVATE_TARGETS=false` and prefer `HACKLY_ALLOW
 ## Architecture
 
 ```
-Target (DNS verified) → Scan → ScanTasks → RunScanTaskJob (queued immediately) → Findings
+Target (DNS verified) → Scan → ScanTasks → RunScanTaskJob → Findings (on Scan)
 ```
 
 ## License
