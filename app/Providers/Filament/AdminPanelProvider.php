@@ -39,7 +39,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Hackly')
             ->topNavigation()
             ->colors([
-                'primary' => Color::Purple,
+                'primary' => Color::Emerald,
                 'danger' => Color::Rose,
                 'warning' => Color::Amber,
                 'success' => Color::Teal,
