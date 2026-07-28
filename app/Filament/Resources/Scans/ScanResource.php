@@ -160,11 +160,7 @@ class ScanResource extends Resource
         $scan->load(['asset', 'tasks', 'findings', 'requester']);
 
         $findings = $scan->findings
-            ->sortByDesc(fn ($finding) => match ($finding->severity->value) {
-                'high' => 3,
-                'medium' => 2,
-                default => 1,
-            })
+            ->sortByDesc(fn ($finding) => $finding->severity->rank())
             ->values();
 
         $summary = [

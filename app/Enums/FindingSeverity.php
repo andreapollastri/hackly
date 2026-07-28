@@ -31,6 +31,26 @@ enum FindingSeverity: string
         };
     }
 
+    /**
+     * Higher = more severe. Use descending sort for most → least severe.
+     */
+    public function rank(): int
+    {
+        return match ($this) {
+            self::High => 3,
+            self::Medium => 2,
+            self::Low => 1,
+        };
+    }
+
+    /**
+     * SQL expression for ORDER BY (higher rank = more severe).
+     */
+    public static function orderByRankSql(string $column = 'severity'): string
+    {
+        return "CASE {$column} WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END";
+    }
+
     public static function normalize(string $value): self
     {
         $value = strtolower(trim($value));

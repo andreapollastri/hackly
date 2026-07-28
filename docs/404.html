@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 — Hackly</title>
+  <meta name="description" content="Page not found. Return to Hackly docs." />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#7c3aed" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #151820;
+      --ink-soft: #2c3340;
+      --muted: #5c6575;
+      --line: #c8cfda;
+      --paper: #e9edf2;
+      --surface: #f4f6f9;
+      --white: #ffffff;
+      --signal: #7c3aed;
+      --signal-deep: #5b21b6;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --sans: "Source Sans 3", Georgia, sans-serif;
+      --display: "Space Grotesk", var(--sans);
+      --max: 1120px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+      font-size: 1.0625rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; }
+    code, pre { font-family: var(--mono); }
+
+    .atmosphere {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 45% at 8% -8%, rgba(124, 58, 237, 0.12), transparent 55%),
+        radial-gradient(ellipse 55% 40% at 95% 15%, rgba(21, 24, 32, 0.06), transparent 50%),
+        linear-gradient(180deg, var(--surface) 0%, var(--paper) 42%, var(--paper) 100%);
+    }
+
+    .atmosphere::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(21, 24, 32, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(21, 24, 32, 0.035) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(180deg, #000 0%, transparent 65%);
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 1.5rem;
+      background: rgba(244, 246, 249, 0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .nav-brand {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 1.35rem;
+      letter-spacing: -0.04em;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      color: var(--ink);
+    }
+
+    .nav-brand svg { width: 1.55rem; height: 1.55rem; flex-shrink: 0; }
+    .nav-brand .mark {
+      color: var(--signal);
+      margin-left: -0.06em;
+    }
+
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.45rem 0.85rem;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: var(--white) !important;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .nav-cta:hover {
+      background: var(--signal);
+      border-color: var(--signal);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .panel {
+      max-width: 32rem;
+      width: 100%;
+      text-align: left;
+    }
+
+    .kicker {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--signal);
+      margin-bottom: 0.75rem;
+    }
+
+    h1 {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: clamp(2.4rem, 8vw, 3.5rem);
+      letter-spacing: -0.045em;
+      line-height: 1;
+      margin-bottom: 0.85rem;
+    }
+
+    h1 span { color: var(--signal); }
+
+    p {
+      color: var(--muted);
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.8rem 1.25rem;
+      font-family: var(--sans);
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: transform 0.15s, background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: var(--signal);
+      color: var(--white);
+      border-color: var(--signal);
+    }
+
+    .btn-primary:hover {
+      background: var(--signal-deep);
+      border-color: var(--signal-deep);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .btn-secondary:hover {
+      background: var(--ink);
+      color: var(--white);
+    }
+
+    .term {
+      margin-top: 2rem;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #d7dde6;
+      overflow: hidden;
+    }
+
+    .term-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: #8b95a5;
+    }
+
+    .term-bar i {
+      width: 8px;
+      height: 8px;
+      background: var(--signal);
+      display: block;
+    }
+
+    .term pre {
+      margin: 0;
+      padding: 1rem 0.95rem;
+      font-size: 0.82rem;
+      line-height: 1.65;
+    }
+
+    .t-fail { color: #c4b5fd; }
+    .t-dim { color: #7a8494; }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      align-items: center;
+      max-width: var(--max);
+      width: 100%;
+      margin: 0 auto;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--ink-soft);
+      text-decoration: none;
+      margin-left: 1rem;
+    }
+
+    footer a:hover { color: var(--signal); }
+  </style>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Primary">
+    <a class="nav-brand" href="/">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#151820"/>
+        <circle cx="16" cy="16" r="10" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity=".35"/>
+        <circle cx="16" cy="16" r="6.5" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity=".55"/>
+        <circle cx="16" cy="16" r="3" fill="#7c3aed"/>
+        <path d="M16 16 L16 5 A11 11 0 0 1 25.5 20.5 Z" fill="#7c3aed" opacity=".28"/>
+        <path d="M16 4v3M16 25v3M4 16h3M25 16h3" stroke="#f4f6f9" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      Hack<span class="mark">ly</span>
+    </a>
+    <a class="nav-cta" href="/">Home</a>
+  </nav>
+
+  <main>
+    <div class="panel">
+      <p class="kicker">Not found</p>
+      <h1>404<span> ·</span> miss</h1>
+      <p>This path isn’t on the attack surface. Head back to the docs.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="/">Back to Hackly</a>
+        <a class="btn btn-secondary" href="/#docs">Documentation</a>
+      </div>
+      <div class="term" aria-hidden="true">
+        <div class="term-bar"><i></i> hackly · http</div>
+        <pre><span class="t-dim">GET</span>  /… <span class="t-fail">404</span>
+<span class="t-dim">→</span> no route · no finding · go home</pre>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div>
+      &copy; 2026 <a href="https://andreapollastri.net" target="_blank" rel="noopener" style="margin-left:0">Andrea Pollastri</a> — MIT License
+    </div>
+    <div>
+      <a href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">GitHub</a>
+      <a href="/#docs">Docs</a>
+    </div>
+  </footer>
+
+  <script async src="https://stats.misterdev.it/i/c7030c4d-d3a8-476a-acb3-d0b82bc0b4b2.js"></script>
+  <noscript><img src="https://stats.misterdev.it/collect/pixel.gif?k=c7030c4d-d3a8-476a-acb3-d0b82bc0b4b2&p=/" width="1" height="1" /></noscript>
+</body>
+</html>

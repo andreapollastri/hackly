@@ -11,6 +11,7 @@ use App\Enums\ScanTaskStatus;
 use App\Filament\Resources\Assets\Pages\EditAsset;
 use App\Filament\Resources\Assets\Pages\ListAssets;
 use App\Filament\Resources\Assets\Pages\ViewAsset;
+use App\Filament\Resources\Assets\RelationManagers\ScansRelationManager;
 use App\Models\Asset;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -235,7 +236,9 @@ class AssetResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ScansRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

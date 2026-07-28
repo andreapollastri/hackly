@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hackly — Authorized attack-surface &amp; application security scanning</title>
+  <meta name="description" content="Inventory targets you own, verify DNS ownership, run soft rate-limited scans, and review findings from a Filament admin panel. Built with Laravel 13 and Filament 5." />
+  <meta property="og:title" content="Hackly — Authorized attack-surface scanning" />
+  <meta property="og:description" content="Verify ownership, scan with soft rate limits, review findings, export PDFs. Laravel + Filament." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#7c3aed" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #151820;
+      --ink-soft: #2c3340;
+      --muted: #5c6575;
+      --line: #c8cfda;
+      --paper: #e9edf2;
+      --surface: #f4f6f9;
+      --white: #ffffff;
+      --signal: #7c3aed;
+      --signal-deep: #5b21b6;
+      --phosphor: #a78bfa;
+      --terminal: #151820;
+      --pass: #1a7f4b;
+      --warn: #b45309;
+      --fail: #7c3aed;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --sans: "Source Sans 3", Georgia, sans-serif;
+      --display: "Space Grotesk", var(--sans);
+      --max: 1120px;
+      --docs-sidebar: 210px;
+      --docs-anchor-offset: 5.5rem;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: var(--docs-anchor-offset);
+    }
+
+    body {
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+      font-size: 1.0625rem;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; }
+    code, pre { font-family: var(--mono); }
+
+    .atmosphere {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 45% at 8% -8%, rgba(124, 58, 237, 0.12), transparent 55%),
+        radial-gradient(ellipse 55% 40% at 95% 15%, rgba(21, 24, 32, 0.06), transparent 50%),
+        linear-gradient(180deg, var(--surface) 0%, var(--paper) 42%, var(--paper) 100%);
+    }
+
+    .atmosphere::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(21, 24, 32, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(21, 24, 32, 0.035) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(180deg, #000 0%, transparent 65%);
+    }
+
+    /* Nav */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 1.5rem;
+      background: rgba(244, 246, 249, 0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .nav-brand {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 1.35rem;
+      letter-spacing: -0.04em;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      color: var(--ink);
+    }
+
+    .nav-brand svg { width: 1.55rem; height: 1.55rem; flex-shrink: 0; }
+
+    .nav-brand .mark {
+      color: var(--signal);
+      margin-left: -0.06em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.35rem;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--ink-soft);
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--signal); }
+
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.45rem 0.85rem;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: var(--white) !important;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .nav-cta:hover {
+      background: var(--signal);
+      border-color: var(--signal);
+    }
+
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      background: none;
+      border: 0;
+      cursor: pointer;
+      padding: 0.35rem;
+    }
+
+    .hamburger span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: var(--ink);
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      padding: 3.5rem 0 0;
+    }
+
+    .hero-copy {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 1.5rem 2.5rem;
+    }
+
+    .hero-brand {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: clamp(2.6rem, 8vw, 4.25rem);
+      letter-spacing: -0.045em;
+      line-height: 1;
+      animation: rise 0.7s ease both;
+    }
+
+    .hero-brand .mark {
+      color: var(--signal);
+      margin-left: -0.08em;
+    }
+
+    .hero-copy h1 {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: clamp(1.45rem, 3.2vw, 2rem);
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin: 1.1rem 0 0.7rem;
+      animation: rise 0.7s 0.08s ease both;
+    }
+
+    .hero-copy > p {
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1.5;
+      max-width: 38rem;
+      animation: rise 0.7s 0.14s ease both;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      animation: rise 0.7s 0.2s ease both;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 0.8rem 1.25rem;
+      font-family: var(--sans);
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: var(--signal);
+      color: var(--white);
+      border-color: var(--signal);
+    }
+
+    .btn-primary:hover {
+      background: var(--signal-deep);
+      border-color: var(--signal-deep);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .btn-secondary:hover {
+      background: var(--ink);
+      color: var(--white);
+    }
+
+    .legal-note {
+      margin-top: 1.25rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      max-width: 40rem;
+      animation: rise 0.7s 0.24s ease both;
+    }
+
+    .legal-note strong { color: var(--ink-soft); }
+
+    .hero-visual {
+      position: relative;
+      width: 100%;
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      background: var(--ink);
+      color: #d7dde6;
+      animation: rise 0.8s 0.22s ease both;
+    }
+
+    .hero-visual::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(124, 58, 237, 0.04) 3px,
+        rgba(124, 58, 237, 0.04) 6px
+      );
+      animation: scan 10s linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .hero-visual-inner {
+      position: relative;
+      z-index: 1;
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    .hero-visual-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: #8b95a5;
+    }
+
+    .hero-visual-bar i {
+      flex: 0 0 8px;
+      width: 8px;
+      height: 8px;
+      display: block;
+      background: var(--signal);
+    }
+
+    .hero-visual pre {
+      margin: 0;
+      padding: 1.25rem 0 1.75rem;
+      font-size: clamp(0.72rem, 1.6vw, 0.85rem);
+      line-height: 1.75;
+      white-space: pre;
+      overflow-x: auto;
+      tab-size: 2;
+    }
+
+    .t-pass { color: #3dbe7a; }
+    .t-fail { color: #c4b5fd; }
+    .t-warn { color: #f0b429; }
+    .t-dim { color: #7a8494; }
+    .t-hi { color: #ff6b81; }
+    .t-cmd { color: #7ec8ff; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes scan {
+      from { transform: translateY(0); }
+      to { transform: translateY(40px); }
+    }
+
+    /* Sections */
+    section { padding: 5rem 1.5rem; }
+
+    .section-inner {
+      max-width: var(--max);
+      margin: 0 auto;
+    }
+
+    .section-kicker {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--signal);
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: clamp(1.85rem, 4vw, 2.6rem);
+      letter-spacing: -0.035em;
+      line-height: 1.1;
+      margin-bottom: 0.85rem;
+    }
+
+    .section-lead {
+      color: var(--muted);
+      max-width: 36rem;
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+    }
+
+    .band {
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--white);
+    }
+
+    .coverage-list {
+      display: grid;
+      gap: 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .coverage-row {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr auto;
+      gap: 1rem;
+      align-items: baseline;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    @media (min-width: 700px) {
+      .coverage-row {
+        grid-template-columns: 2.5rem 11rem 1fr auto;
+      }
+    }
+
+    .coverage-row .n {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .coverage-row .name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .coverage-row .desc {
+      color: var(--muted);
+      font-size: 0.95rem;
+      grid-column: 2 / -1;
+    }
+
+    @media (min-width: 700px) {
+      .coverage-row .desc { grid-column: auto; }
+    }
+
+    .tag {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      color: var(--ink-soft);
+    }
+
+    .link-inline {
+      color: var(--signal);
+      font-weight: 600;
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+    }
+
+    .link-inline:hover { border-bottom-color: var(--signal); }
+
+    /* Install */
+    .install-grid {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    @media (min-width: 800px) {
+      .install-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .code-block {
+      border: 1px solid var(--line);
+      background: var(--ink);
+      color: #e4e8ef;
+      overflow: hidden;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.55rem 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: #8b95a5;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #c5ccd6;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      border-color: var(--signal);
+      color: #fff;
+    }
+
+    .code-block pre {
+      padding: 1rem 0.95rem;
+      font-size: 0.82rem;
+      line-height: 1.65;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    .tok-cmd { color: #7ec8ff; }
+    .tok-arg { color: #d8b4fe; }
+    .tok-flag { color: #f0b429; }
+    .tok-cmt { color: #6b7482; }
+
+    .steps {
+      display: grid;
+      gap: 0;
+      border-top: 1px solid var(--line);
+      margin-top: 2rem;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr;
+      gap: 1rem;
+      padding: 1.15rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .step .n {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--signal);
+      font-weight: 600;
+    }
+
+    .step h3 {
+      font-family: var(--display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.35rem;
+    }
+
+    .step p { color: var(--muted); font-size: 0.98rem; }
+
+    /* Docs */
+    #docs {
+      background: var(--white);
+      border-top: 1px solid var(--line);
+      padding-top: 4rem;
+      padding-bottom: 5rem;
+    }
+
+    .docs-layout {
+      max-width: var(--max);
+      margin: 0 auto;
+      display: grid;
+      gap: 2.5rem;
+    }
+
+    @media (min-width: 900px) {
+      .docs-layout {
+        grid-template-columns: var(--docs-sidebar) minmax(0, 1fr);
+        gap: 3rem;
+        align-items: start;
+      }
+    }
+
+    .docs-toc { font-size: 0.9rem; }
+
+    @media (min-width: 900px) {
+      .docs-toc {
+        position: sticky;
+        top: 5rem;
+      }
+    }
+
+    .docs-toc strong {
+      display: block;
+      font-family: var(--display);
+      font-size: 0.95rem;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.85rem;
+    }
+
+    .docs-toc ol {
+      list-style: none;
+      display: grid;
+      gap: 0.35rem;
+      border-left: 2px solid var(--line);
+      padding-left: 0.85rem;
+    }
+
+    .docs-toc a {
+      text-decoration: none;
+      color: var(--muted);
+      display: block;
+      padding: 0.2rem 0;
+      transition: color 0.15s;
+    }
+
+    .docs-toc a:hover,
+    .docs-toc a.active { color: var(--signal); }
+
+    .docs-content { min-width: 0; }
+
+    .docs-content > header {
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .doc-block {
+      margin-bottom: 3rem;
+      scroll-margin-top: 5.5rem;
+    }
+
+    .doc-block h3 {
+      font-family: var(--display);
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.75rem;
+    }
+
+    .doc-block h4 {
+      font-family: var(--sans);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    .doc-block p,
+    .doc-block li {
+      color: var(--ink-soft);
+      max-width: 42rem;
+    }
+
+    .doc-block p + p { margin-top: 0.85rem; }
+
+    .doc-block ul,
+    .doc-block ol {
+      margin: 0.75rem 0 0 1.2rem;
+    }
+
+    .doc-block li + li { margin-top: 0.35rem; }
+
+    .doc-block .code-block { margin-top: 1rem; }
+
+    .callout {
+      margin-top: 1rem;
+      padding: 0.9rem 1rem;
+      border-left: 3px solid var(--signal);
+      background: var(--paper);
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+      max-width: 42rem;
+    }
+
+    .table-wrap {
+      margin-top: 1rem;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+    }
+
+    table.docs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    table.docs-table th,
+    table.docs-table td {
+      text-align: left;
+      padding: 0.7rem 0.85rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    table.docs-table th {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: var(--paper);
+      font-weight: 500;
+    }
+
+    table.docs-table tr:last-child td { border-bottom: none; }
+
+    table.docs-table td:first-child,
+    table.docs-table td.mono {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    table.docs-table td.strong {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      align-items: center;
+      max-width: var(--max);
+      margin: 0 auto;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--ink-soft);
+      text-decoration: none;
+      margin-left: 1rem;
+    }
+
+    footer a:hover { color: var(--signal); }
+
+    @media (max-width: 720px) {
+      .hamburger { display: flex; }
+
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 0.75rem 1.5rem 1rem;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .nav-links.open { display: flex; }
+
+      .nav-links a {
+        padding: 0.65rem 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .nav-links a:last-child { border-bottom: 0; }
+
+      .nav-cta {
+        justify-content: center;
+        margin-top: 0.35rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Primary">
+    <a class="nav-brand" href="/">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#151820"/>
+        <circle cx="16" cy="16" r="10" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity=".35"/>
+        <circle cx="16" cy="16" r="6.5" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity=".55"/>
+        <circle cx="16" cy="16" r="3" fill="#7c3aed"/>
+        <path d="M16 16 L16 5 A11 11 0 0 1 25.5 20.5 Z" fill="#7c3aed" opacity=".28"/>
+        <path d="M16 4v3M16 25v3M4 16h3M25 16h3" stroke="#f4f6f9" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      Hack<span class="mark">ly</span>
+    </a>
+    <button class="hamburger" id="nav-hamburger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-links">
+      <a href="#coverage">Coverage</a>
+      <a href="#install">Install</a>
+      <a href="#docs">Docs</a>
+      <a class="nav-cta" href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-copy">
+      <div class="hero-brand" aria-label="Hackly">Hack<span class="mark">ly</span></div>
+      <h1>Authorized attack-surface<br>scanning — with ownership gates.</h1>
+      <p>
+        Inventory targets you own, verify DNS ownership, run soft rate-limited scans,
+        and review findings from a Filament admin panel. Built with Laravel&nbsp;13 and Filament&nbsp;5.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#install">Get started</a>
+        <a class="btn btn-secondary" href="#docs">Read the docs</a>
+        <a class="btn btn-secondary" href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      <p class="legal-note">
+        <strong>Legal notice</strong> — Only scan targets you are authorized to assess.
+        Unauthorized scanning may be illegal. DNS ownership verification is required before a scan can start.
+      </p>
+    </div>
+
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-visual-inner">
+        <div class="hero-visual-bar">
+          <i></i>
+          hackly · scan · profile=standard · example.com
+        </div>
+        <pre><span class="t-dim">$</span> <span class="t-cmd">php artisan hackly:scan</span> <span class="t-arg">example.com</span> <span class="t-flag">--profile=standard</span>
+<span class="t-dim">→</span> Target verified via DNS TXT
+<span class="t-dim">→</span> Dispatching 5 tasks…
+
+  <span class="t-pass">✓</span> dns_info          <span class="t-dim">dig · whois</span>
+  <span class="t-pass">✓</span> port_scan         <span class="t-dim">nmap top-50</span>
+  <span class="t-pass">✓</span> subdomain_enum    <span class="t-dim">wordlist + CT</span>
+  <span class="t-warn">~</span> path_discovery    <span class="t-dim">soft wordlist</span>
+  <span class="t-hi">!</span> nuclei_owasp      <span class="t-fail">2 HIGH · 4 MEDIUM</span>
+
+<span class="t-dim">Findings ordered HIGH → LOW · PDF ready</span></pre>
+      </div>
+    </div>
+  </header>
+
+  <section id="coverage">
+    <div class="section-inner">
+      <p class="section-kicker">Coverage</p>
+      <h2 class="section-title">Scanners that respect<br>your rate limits.</h2>
+      <p class="section-lead">
+        Profiles map to task sets. Soft jitter, spacing, quiet hours, and deep-scan cooldown
+        keep noise — and ban risk — down.
+      </p>
+
+      <div class="coverage-list">
+        <div class="coverage-row">
+          <span class="n">01</span>
+          <span class="name">DNS / WHOIS</span>
+          <span class="desc"><code>dig</code> + <code>whois</code> — records, registrar, and basic exposure.</span>
+          <span class="tag">quick · standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">02</span>
+          <span class="name">Port scan</span>
+          <span class="desc"><code>nmap</code> top ports with light service detection.</span>
+          <span class="tag">quick · standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">03</span>
+          <span class="name">Subdomains</span>
+          <span class="desc">Soft wordlist + Certificate Transparency logs.</span>
+          <span class="tag">standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">04</span>
+          <span class="name">Path discovery</span>
+          <span class="desc">Soft wordlist / Nuclei paths — no aggressive brute-force.</span>
+          <span class="tag">standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">05</span>
+          <span class="name">Nuclei templates</span>
+          <span class="desc">OWASP-oriented vulnerability templates via <code>nuclei</code>.</span>
+          <span class="tag">standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">06</span>
+          <span class="name">OWASP ZAP DAST</span>
+          <span class="desc">Baseline DAST for deep profile — longer timeout, cooldown enforced.</span>
+          <span class="tag">deep</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" class="band">
+    <div class="section-inner">
+      <p class="section-kicker">Install</p>
+      <h2 class="section-title">Up in minutes.</h2>
+      <p class="section-lead">
+        PHP 8.3+, Composer, and SQLite (or MySQL / PostgreSQL). A queue worker must be running for scans to execute.
+      </p>
+
+      <div class="install-grid">
+        <div class="code-block">
+          <div class="code-header">
+            <span>Terminal — bootstrap</span>
+            <button class="copy-btn" type="button" data-copy="composer install
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate --seed">Copy</button>
+          </div>
+          <pre><span class="tok-cmd">composer install</span>
+<span class="tok-cmd">cp</span> <span class="tok-arg">.env.example</span> <span class="tok-arg">.env</span>
+<span class="tok-cmd">php artisan key:generate</span>
+<span class="tok-cmd">touch</span> <span class="tok-arg">database/database.sqlite</span>
+<span class="tok-cmd">php artisan migrate --seed</span></pre>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span>Terminal — run</span>
+            <button class="copy-btn" type="button" data-copy="composer run dev">Copy</button>
+          </div>
+          <pre><span class="tok-cmt"># serve + queue + logs + vite</span>
+<span class="tok-cmd">composer run dev</span>
+
+<span class="tok-cmt"># or separately:</span>
+<span class="tok-cmd">php artisan serve</span>
+<span class="tok-cmd">php artisan queue:work</span>  <span class="tok-cmt"># required</span></pre>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <span class="n">01</span>
+          <div>
+            <h3>Open the app</h3>
+            <p>Visit <code>/</code> — seeded as <code>admin@hackly.test</code> / <code>password</code>. Change it immediately.</p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="n">02</span>
+          <div>
+            <h3>Add &amp; verify a target</h3>
+            <p>Create a domain or IP, publish the DNS TXT token, then verify ownership before scanning.</p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="n">03</span>
+          <div>
+            <h3>Start a scan</h3>
+            <p>Pick <code>quick</code>, <code>standard</code>, or <code>deep</code>. Jobs dispatch immediately; findings sort HIGH → LOW.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="docs">
+    <div class="docs-layout">
+      <aside class="docs-toc" aria-label="Documentation contents">
+        <strong>On this page</strong>
+        <ol>
+          <li><a href="#doc-overview">Overview</a></li>
+          <li><a href="#doc-requirements">Requirements</a></li>
+          <li><a href="#doc-binaries">Scanner binaries</a></li>
+          <li><a href="#doc-usage">Usage</a></li>
+          <li><a href="#doc-profiles">Scan profiles</a></li>
+          <li><a href="#doc-commands">Commands</a></li>
+          <li><a href="#doc-configuration">Configuration</a></li>
+          <li><a href="#doc-security">Security model</a></li>
+          <li><a href="#doc-production">Production</a></li>
+        </ol>
+      </aside>
+
+      <div class="docs-content">
+        <header>
+          <p class="section-kicker">Documentation</p>
+          <h2 class="section-title">Reference</h2>
+          <p class="section-lead" style="margin-bottom:0">
+            Architecture, profiles, CLI, env knobs, and the ownership-first security model.
+          </p>
+        </header>
+
+        <article class="doc-block" id="doc-overview">
+          <h3>Overview</h3>
+          <p>
+            Hackly is an orchestration layer for <strong>authorized</strong> attack-surface and
+            application security scanning. You inventory targets, prove ownership, run soft
+            rate-limited scanner jobs, and review normalized findings in Filament.
+          </p>
+          <div class="code-block">
+            <div class="code-header"><span>Architecture</span></div>
+            <pre>Target (verified)
+   └─ Scan
+        └─ ScanTasks  →  RunScanTaskJob  →  Findings</pre>
+          </div>
+          <p style="margin-top:1rem">
+            Jobs use the <strong>database queue</strong> (no Horizon). A queue worker must be
+            running for scans to execute.
+          </p>
+        </article>
+
+        <article class="doc-block" id="doc-requirements">
+          <h3>Requirements</h3>
+          <ul>
+            <li>PHP <strong>8.3+</strong></li>
+            <li>Composer</li>
+            <li>SQLite <em>(default)</em> or MySQL / PostgreSQL</li>
+            <li>Node.js <em>(optional — Vite assets; Filament ships published assets)</em></li>
+          </ul>
+          <div class="callout">
+            Default admin after seed: <code>/</code> · <code>admin@hackly.test</code> · <code>password</code>
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-binaries">
+          <h3>Scanner binaries</h3>
+          <p>
+            Optional but recommended. Without them, related tasks fail gracefully and surface
+            missing-binary errors in the scan UI.
+          </p>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Binary</th>
+                  <th>Used for</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">dig, whois</td>
+                  <td>DNS / WHOIS</td>
+                </tr>
+                <tr>
+                  <td class="mono">nmap</td>
+                  <td>Ports</td>
+                </tr>
+                <tr>
+                  <td class="mono">nuclei</td>
+                  <td>Templates &amp; path discovery</td>
+                </tr>
+                <tr>
+                  <td class="mono">zap.sh</td>
+                  <td>Deep DAST (OWASP ZAP)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>Ubuntu 24.04 / 26.04+</h4>
+          <div class="code-block">
+            <div class="code-header">
+              <span>Install helpers</span>
+              <button class="copy-btn" type="button" data-copy="sudo bash scripts/install-scanner-binaries-ubuntu.sh
+php artisan hackly:check-binaries">Copy</button>
+            </div>
+            <pre><span class="tok-cmd">sudo bash</span> <span class="tok-arg">scripts/install-scanner-binaries-ubuntu.sh</span>
+<span class="tok-cmd">php artisan hackly:check-binaries</span></pre>
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-usage">
+          <h3>Usage</h3>
+          <h4>From the admin UI</h4>
+          <ol>
+            <li>Open <strong>Targets</strong> → create a domain or IP</li>
+            <li>Copy the <strong>DNS token</strong> → publish the TXT record at your DNS provider</li>
+            <li><strong>Verify DNS</strong> — must succeed before scanning</li>
+            <li><strong>Start scan</strong> — pick a profile; jobs dispatch immediately</li>
+            <li>Watch <strong>Scans</strong> for live progress, open findings (HIGH → LOW), export the <strong>PDF</strong></li>
+            <li>On a target’s detail page, browse the related <strong>Scans</strong> table</li>
+          </ol>
+          <h4>From the CLI</h4>
+          <div class="code-block">
+            <div class="code-header">
+              <span>Terminal</span>
+              <button class="copy-btn" type="button" data-copy="php artisan hackly:scan example.com --profile=standard">Copy</button>
+            </div>
+            <pre><span class="tok-cmd">php artisan hackly:scan</span> <span class="tok-arg">example.com</span> <span class="tok-flag">--profile=standard</span></pre>
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-profiles">
+          <h3>Scan profiles</h3>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Profile</th>
+                  <th>Tasks</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="strong">quick</td>
+                  <td><code>dns_info</code>, <code>port_scan</code></td>
+                </tr>
+                <tr>
+                  <td class="strong">standard</td>
+                  <td>+ <code>subdomain_enum</code>, <code>path_discovery</code>, <code>nuclei_owasp</code></td>
+                </tr>
+                <tr>
+                  <td class="strong">deep</td>
+                  <td>+ <code>zap_baseline</code> (cooldown between deep runs on the same target)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:1rem">
+            Findings are normalized to <strong>LOW / MEDIUM / HIGH</strong> and ordered by severity.
+          </p>
+        </article>
+
+        <article class="doc-block" id="doc-commands">
+          <h3>Commands</h3>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">hackly:check-binaries</td>
+                  <td>Verify scanner binaries</td>
+                </tr>
+                <tr>
+                  <td class="mono">hackly:scan {target}</td>
+                  <td>Create scan &amp; dispatch jobs (<code>--profile=</code>)</td>
+                </tr>
+                <tr>
+                  <td class="mono">hackly:cleanup-outputs</td>
+                  <td>Delete old raw scanner outputs</td>
+                </tr>
+                <tr>
+                  <td class="mono">hackly:dispatch-due</td>
+                  <td>Re-dispatch leftover pending tasks</td>
+                </tr>
+                <tr>
+                  <td class="mono">queue:work</td>
+                  <td>Process scan jobs</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-configuration">
+          <h3>Configuration</h3>
+          <p>
+            Primary config: <code>config/hackly.php</code> — override via <code>.env</code>.
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span>.env</span>
+              <button class="copy-btn" type="button" data-copy="QUEUE_CONNECTION=database
+CACHE_STORE=database
+
+HACKLY_ALLOWLIST_ONLY=false
+HACKLY_ALLOWLIST=example.com,203.0.113.10
+HACKLY_ALLOW_PRIVATE_TARGETS=true
+
+HACKLY_PER_TARGET_PER_MINUTE=2
+HACKLY_GLOBAL_CONCURRENT=5
+HACKLY_JITTER_SECONDS=5
+HACKLY_TASK_SPACING_SECONDS=10
+HACKLY_DEEP_COOLDOWN_HOURS=24
+HACKLY_QUIET_HOURS_ENABLED=false
+
+HACKLY_JOB_TIMEOUT=960
+DB_QUEUE_RETRY_AFTER=1020
+
+HACKLY_NMAP=nmap
+HACKLY_NUCLEI=nuclei
+HACKLY_ZAP=zap.sh">Copy</button>
+            </div>
+            <pre>QUEUE_CONNECTION=database
+CACHE_STORE=database
+
+<span class="tok-cmt"># Safety</span>
+HACKLY_ALLOWLIST_ONLY=false
+HACKLY_ALLOWLIST=example.com,203.0.113.10
+HACKLY_ALLOW_PRIVATE_TARGETS=true
+
+<span class="tok-cmt"># Soft rate limits</span>
+HACKLY_PER_TARGET_PER_MINUTE=2
+HACKLY_GLOBAL_CONCURRENT=5
+HACKLY_JITTER_SECONDS=5
+HACKLY_TASK_SPACING_SECONDS=10
+HACKLY_DEEP_COOLDOWN_HOURS=24
+HACKLY_QUIET_HOURS_ENABLED=false
+
+<span class="tok-cmt"># Job timeout must exceed longest scanner (ZAP ~900s)</span>
+HACKLY_JOB_TIMEOUT=960
+DB_QUEUE_RETRY_AFTER=1020
+
+<span class="tok-cmt"># Binary paths</span>
+HACKLY_NMAP=nmap
+HACKLY_NUCLEI=nuclei
+<span class="tok-cmt"># macOS: HACKLY_ZAP=/Applications/ZAP.app/Contents/Java/zap.sh</span>
+HACKLY_ZAP=zap.sh</pre>
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-security">
+          <h3>Security model</h3>
+          <ul>
+            <li>Scans require <strong>ownership verification</strong> (DNS TXT for domains)</li>
+            <li>Optional <strong>allowlist</strong> and private-IP blocking</li>
+            <li>Soft <strong>rate limits</strong>, <strong>jitter</strong>, <strong>task spacing</strong>, and <strong>quiet hours</strong></li>
+            <li><strong>Deep</strong> profile has a cooldown between runs on the same target</li>
+            <li>Admin accounts support <strong>TOTP</strong> and <strong>email</strong> multi-factor authentication</li>
+          </ul>
+          <div class="callout">
+            Hackly is an orchestration layer — it does not replace responsible disclosure policies
+            or scoped pentest agreements.
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-production">
+          <h3>Production tips</h3>
+          <ul>
+            <li>Set <code>HACKLY_ALLOW_PRIVATE_TARGETS=false</code></li>
+            <li>Prefer <code>HACKLY_ALLOWLIST_ONLY=true</code> with an explicit allowlist</li>
+            <li>Configure real mail for email 2FA (<code>MAIL_MAILER=…</code>)</li>
+            <li>Change the seeded admin password immediately</li>
+            <li>Run a persistent <code>queue:work</code> (and optionally <code>schedule:work</code> for cleanup)</li>
+          </ul>
+          <p style="margin-top:1rem">
+            Source and issues:
+            <a class="link-inline" href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">github.com/andreapollastri/hackly</a>
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>
+      &copy; 2026 <a href="https://andreapollastri.net" target="_blank" rel="noopener" style="margin-left:0">Andrea Pollastri</a> — MIT License
+    </div>
+    <div>
+      <a href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">GitHub</a>
+      <a href="#docs">Docs</a>
+    </div>
+  </footer>
+
+  <script>
+    const hamburger = document.getElementById("nav-hamburger");
+    const navLinks = document.getElementById("nav-links");
+    if (hamburger && navLinks) {
+      hamburger.addEventListener("click", () => {
+        const open = navLinks.classList.toggle("open");
+        hamburger.classList.toggle("open", open);
+        hamburger.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+      navLinks.querySelectorAll("a").forEach((a) => {
+        a.addEventListener("click", () => {
+          navLinks.classList.remove("open");
+          hamburger.classList.remove("open");
+          hamburger.setAttribute("aria-expanded", "false");
+        });
+      });
+    }
+
+    document.querySelectorAll(".copy-btn[data-copy]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const text = btn.getAttribute("data-copy") || "";
+        try {
+          await navigator.clipboard.writeText(text);
+          const prev = btn.textContent;
+          btn.textContent = "Copied";
+          setTimeout(() => { btn.textContent = prev; }, 1400);
+        } catch (_) {
+          btn.textContent = "Failed";
+          setTimeout(() => { btn.textContent = "Copy"; }, 1400);
+        }
+      });
+    });
+
+    const tocLinks = [...document.querySelectorAll(".docs-toc a")];
+    const sections = tocLinks
+      .map((a) => document.querySelector(a.getAttribute("href")))
+      .filter(Boolean);
+
+    const tocObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const id = "#" + entry.target.id;
+          tocLinks.forEach((link) => {
+            link.classList.toggle("active", link.getAttribute("href") === id);
+          });
+        });
+      },
+      { rootMargin: "-20% 0px -65% 0px", threshold: 0 }
+    );
+
+    sections.forEach((section) => tocObserver.observe(section));
+  </script>
+
+  <script async src="https://stats.misterdev.it/i/c7030c4d-d3a8-476a-acb3-d0b82bc0b4b2.js"></script>
+  <noscript><img src="https://stats.misterdev.it/collect/pixel.gif?k=c7030c4d-d3a8-476a-acb3-d0b82bc0b4b2&p=/" width="1" height="1" /></noscript>
+</body>
+</html>

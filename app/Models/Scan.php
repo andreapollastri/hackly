@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FindingSeverity;
 use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
 use App\Enums\ScanTaskStatus;
@@ -51,7 +52,8 @@ class Scan extends Model
 
     public function findings(): HasMany
     {
-        return $this->hasMany(Finding::class);
+        return $this->hasMany(Finding::class)
+            ->orderByRaw(FindingSeverity::orderByRankSql().' desc');
     }
 
     public function finishedTasksCount(): int

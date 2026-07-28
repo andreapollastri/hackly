@@ -13,6 +13,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class FindingsRelationManager extends RelationManager
 {
@@ -55,7 +56,14 @@ class FindingsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->defaultSort('severity', 'desc')
+            ->defaultSort(
+                function (Builder $query, string $direction): Builder {
+                    $direction = $direction === 'asc' ? 'asc' : 'desc';
+
+                    return $query->orderByRaw(FindingSeverity::orderByRankSql().' '.$direction);
+                },
+                'desc',
+            )
             ->recordTitleAttribute('title')
             ->recordAction('view')
             ->columns([
@@ -63,7 +71,11 @@ class FindingsRelationManager extends RelationManager
                     ->badge()
                     ->formatStateUsing(fn (FindingSeverity $state): string => $state->label())
                     ->color(fn (FindingSeverity $state): string => $state->color())
-                    ->sortable(),
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        $direction = $direction === 'asc' ? 'asc' : 'desc';
+
+                        return $query->orderByRaw(FindingSeverity::orderByRankSql().' '.$direction);
+                    }),
                 TextColumn::make('title')
                     ->searchable()
                     ->wrap()
