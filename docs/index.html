@@ -107,9 +107,14 @@
 
     .nav-brand svg { width: 1.55rem; height: 1.55rem; flex-shrink: 0; }
 
+    .nav-brand .word {
+      display: inline-block;
+      white-space: nowrap;
+    }
+
     .nav-brand .mark {
       color: var(--signal);
-      margin-left: -0.06em;
+      margin-left: -0.08em;
     }
 
     .nav-links {
@@ -766,7 +771,7 @@
         <path d="M16 16 L16 5 A11 11 0 0 1 25.5 20.5 Z" fill="#7c3aed" opacity=".28"/>
         <path d="M16 4v3M16 25v3M4 16h3M25 16h3" stroke="#f4f6f9" stroke-width="1.4" stroke-linecap="round"/>
       </svg>
-      Hack<span class="mark">ly</span>
+      <span class="word">Hack<span class="mark">ly</span></span>
     </a>
     <button class="hamburger" id="nav-hamburger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
       <span></span><span></span><span></span>
