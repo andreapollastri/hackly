@@ -89,7 +89,13 @@ class RunScanTaskJob implements ShouldQueue
 
         try {
             $command = $scanner->buildCommand($asset, $task, $outputPath);
-            $result = $runner->run($command, $scanner->timeoutSeconds(), $outputPath);
+            $result = $runner->run(
+                $command,
+                $scanner->timeoutSeconds(),
+                $outputPath,
+                $scanner->processEnvironment() ?: null,
+                $scanner->workingDirectory(),
+            );
             $findings = $scanner->parse($asset, $task, $result);
             $dispatcher->persistFindings($task, $findings);
 

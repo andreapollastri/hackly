@@ -5,6 +5,7 @@ namespace App\Domain\Scanning\Scanners;
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
 use App\Domain\Scanning\Services\BinaryRunner;
+use App\Domain\Scanning\Support\NucleiRuntime;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
 use App\Models\Asset;
@@ -28,6 +29,28 @@ class PathDiscoveryScanner extends AbstractScanner
         return 2;
     }
 
+    public function processEnvironment(): array
+    {
+        $nuclei = $this->binary('nuclei');
+
+        if (! app(BinaryRunner::class)->binaryExists($nuclei)) {
+            return [];
+        }
+
+        return NucleiRuntime::environment();
+    }
+
+    public function workingDirectory(): ?string
+    {
+        $nuclei = $this->binary('nuclei');
+
+        if (! app(BinaryRunner::class)->binaryExists($nuclei)) {
+            return null;
+        }
+
+        return NucleiRuntime::home();
+    }
+
     public function buildCommand(Asset $asset, ScanTask $task, string $outputPath): array
     {
         $this->ensureOutputDir($outputPath);
@@ -40,21 +63,24 @@ class PathDiscoveryScanner extends AbstractScanner
         if ($runner->binaryExists($nuclei)) {
             $jsonl = $outputPath.'.jsonl';
 
-            return [
-                $nuclei,
-                '-u',
-                $asset->httpBaseUrl(),
-                '-tags',
-                'discovery,exposure,config',
-                '-rate-limit',
-                (string) config('hackly.path_discovery.rate_limit', 20),
-                '-c',
-                '3',
-                '-silent',
-                '-jsonl',
-                '-o',
-                $jsonl,
-            ];
+            return array_merge(
+                [$nuclei],
+                NucleiRuntime::baseFlags(),
+                [
+                    '-u',
+                    $asset->httpBaseUrl(),
+                    '-tags',
+                    'discovery,exposure,config',
+                    '-rate-limit',
+                    (string) config('hackly.path_discovery.rate_limit', 20),
+                    '-c',
+                    '3',
+                    '-silent',
+                    '-jsonl',
+                    '-o',
+                    $jsonl,
+                ],
+            );
         }
 
         return [

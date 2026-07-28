@@ -12,8 +12,9 @@ class BinaryRunner
 {
     /**
      * @param  list<string>  $command
+     * @param  array<string, string>|null  $env
      */
-    public function run(array $command, int $timeout, ?string $outputPath = null): BinaryResult
+    public function run(array $command, int $timeout, ?string $outputPath = null, ?array $env = null, ?string $path = null): BinaryResult
     {
         if ($command === []) {
             throw new RuntimeException('Empty command.');
@@ -28,10 +29,22 @@ class BinaryRunner
         Log::info('hackly.binary.run', [
             'command' => $command,
             'timeout' => $timeout,
+            'path' => $path,
+            'env_keys' => $env !== null ? array_keys($env) : [],
         ]);
 
         try {
-            $result = Process::timeout($timeout)->run($command);
+            $pending = Process::timeout($timeout);
+
+            if ($env !== null) {
+                $pending = $pending->env($env);
+            }
+
+            if ($path !== null) {
+                $pending = $pending->path($path);
+            }
+
+            $result = $pending->run($command);
             $stdout = $result->output();
             $stderr = $result->errorOutput();
             $exitCode = $result->exitCode() ?? 1;
@@ -45,6 +58,7 @@ class BinaryRunner
                 || is_file($outputPath.'.xml')
                 || is_file($outputPath.'.txt')
                 || is_file($outputPath.'.json')
+                || is_file($outputPath.'.jsonl')
             );
 
             Log::warning('hackly.binary.timeout', [

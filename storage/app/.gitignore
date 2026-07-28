@@ -5,4 +5,6 @@
 !wordlists/**
 !scans/
 !scans/.gitignore
+!nuclei-home/
+!nuclei-home/.gitignore
 !.gitignore

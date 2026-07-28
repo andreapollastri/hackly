@@ -26,6 +26,18 @@ interface ScannerContract
     public function queue(): string;
 
     /**
+     * Extra environment variables for the process (e.g. HOME for Nuclei).
+     *
+     * @return array<string, string>
+     */
+    public function processEnvironment(): array;
+
+    /**
+     * Optional working directory for the process.
+     */
+    public function workingDirectory(): ?string;
+
+    /**
      * @return list<ScannerFinding>
      */
     public function parse(Asset $asset, ScanTask $task, BinaryResult $result): array;

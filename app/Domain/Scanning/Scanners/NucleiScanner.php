@@ -5,6 +5,7 @@ namespace App\Domain\Scanning\Scanners;
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
 use App\Domain\Scanning\Services\BinaryRunner;
+use App\Domain\Scanning\Support\NucleiRuntime;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
 use App\Models\Asset;
@@ -28,6 +29,16 @@ class NucleiScanner extends AbstractScanner
         return 3;
     }
 
+    public function processEnvironment(): array
+    {
+        return NucleiRuntime::environment();
+    }
+
+    public function workingDirectory(): ?string
+    {
+        return NucleiRuntime::home();
+    }
+
     public function buildCommand(Asset $asset, ScanTask $task, string $outputPath): array
     {
         $this->ensureOutputDir($outputPath);
@@ -40,31 +51,27 @@ class NucleiScanner extends AbstractScanner
         }
 
         $jsonl = $outputPath.'.jsonl';
-        $command = [
-            $nuclei,
-            '-u',
-            $asset->httpBaseUrl(),
-            '-tags',
-            'owasp,cve,misconfig,exposure,vuln',
-            '-severity',
-            'info,low,medium,high,critical',
-            '-rate-limit',
-            (string) config('hackly.nuclei.rate_limit', 30),
-            '-c',
-            (string) config('hackly.nuclei.concurrency', 5),
-            '-silent',
-            '-jsonl',
-            '-o',
-            $jsonl,
-        ];
 
-        $templates = config('hackly.nuclei.templates_path');
-        if (filled($templates)) {
-            $command[] = '-t';
-            $command[] = $templates;
-        }
-
-        return $command;
+        return array_merge(
+            [$nuclei],
+            NucleiRuntime::baseFlags(),
+            [
+                '-u',
+                $asset->httpBaseUrl(),
+                '-tags',
+                'owasp,cve,misconfig,exposure,vuln',
+                '-severity',
+                'info,low,medium,high,critical',
+                '-rate-limit',
+                (string) config('hackly.nuclei.rate_limit', 30),
+                '-c',
+                (string) config('hackly.nuclei.concurrency', 5),
+                '-silent',
+                '-jsonl',
+                '-o',
+                $jsonl,
+            ],
+        );
     }
 
     public function parse(Asset $asset, ScanTask $task, BinaryResult $result): array

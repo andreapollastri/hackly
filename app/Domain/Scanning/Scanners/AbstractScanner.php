@@ -16,6 +16,19 @@ abstract class AbstractScanner implements ScannerContract
         return (string) config('hackly.queues.'.$this->type()->value, 'default');
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function processEnvironment(): array
+    {
+        return [];
+    }
+
+    public function workingDirectory(): ?string
+    {
+        return null;
+    }
+
     public function estimateCost(): int
     {
         return 1;

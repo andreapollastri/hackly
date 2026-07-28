@@ -127,6 +127,8 @@ return [
         'rate_limit' => (int) env('HACKLY_NUCLEI_RATE_LIMIT', 30),
         'concurrency' => (int) env('HACKLY_NUCLEI_CONCURRENCY', 5),
         'timeout' => (int) env('HACKLY_NUCLEI_TIMEOUT', 600),
+        // Writable HOME for queue workers (config/cache/templates). Avoids CWD permission errors.
+        'home' => env('HACKLY_NUCLEI_HOME', storage_path('app/nuclei-home')),
         'templates_path' => env('HACKLY_NUCLEI_TEMPLATES'),
     ],
 

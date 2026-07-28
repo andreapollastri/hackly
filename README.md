@@ -168,6 +168,10 @@ DB_QUEUE_RETRY_AFTER=1020
 # Binary paths (examples)
 HACKLY_NMAP=nmap
 HACKLY_NUCLEI=nuclei
+# Writable HOME for nuclei when the queue user cannot write the app CWD:
+# HACKLY_NUCLEI_HOME=/path/to/storage/app/nuclei-home
+# Optional owner for `php artisan migrate` chown (default: autodetect www-data/nginx/…):
+# HACKLY_STORAGE_OWNER=www-data
 # macOS:
 # HACKLY_ZAP=/Applications/ZAP.app/Contents/Java/zap.sh
 HACKLY_ZAP=zap.sh
