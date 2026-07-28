@@ -1,0 +1,8 @@
+*
+!private/
+!public/
+!wordlists/
+!wordlists/**
+!scans/
+!scans/.gitignore
+!.gitignore
