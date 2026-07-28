@@ -1,22 +1,40 @@
+@php
+    use App\Enums\ScanTaskStatus;
+    use App\Models\ScanTask;
+
+    $scan = $getRecord();
+    $tasks = $scan->relationLoaded('tasks')
+        ? $scan->tasks->sortBy('sort_order')->values()
+        : $scan->tasks()->orderBy('sort_order')->get();
+
+    $dotKey = $tasks->map(fn (ScanTask $task) => $task->status->value)->implode('-');
+@endphp
+
 <div
-    class="fi-scan-progress flex min-w-40 flex-col gap-1"
-    wire:key="scan-progress-{{ $getRecord()->id }}-{{ $getState() }}"
+    class="fi-scan-progress flex items-center gap-1.5"
+    wire:key="scan-progress-{{ $scan->id }}-{{ $dotKey }}"
+    title="{{ $tasks->map(fn (ScanTask $task) => $task->type->value.': '.$task->status->value)->implode(' · ') }}"
 >
-    <div class="flex items-center justify-between gap-2 text-xs">
-        <span class="font-medium text-gray-700 dark:text-gray-200">{{ $getState() }}%</span>
-        <span class="text-gray-500 dark:text-gray-400">
-            {{ $getRecord()->finishedTasksCount() }}/{{ $getRecord()->totalTasksCount() }}
-        </span>
-    </div>
-    <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-        <div
+    @forelse ($tasks as $task)
+        @php
+            $tone = match ($task->status) {
+                ScanTaskStatus::Completed => 'done',
+                ScanTaskStatus::Failed => 'failed',
+                ScanTaskStatus::Running => 'running',
+                default => 'idle',
+            };
+        @endphp
+        <span
             @class([
-                'h-full rounded-full transition-all duration-500',
-                'bg-emerald-500' => $getState() >= 100,
-                'bg-amber-500' => $getState() > 0 && $getState() < 100,
-                'bg-gray-400' => $getState() === 0,
+                'inline-block size-2.5 rounded-full transition-colors duration-300',
+                'border-2 border-gray-300 bg-transparent dark:border-gray-600' => $tone === 'idle',
+                'bg-amber-500 shadow-[0_0_0_2px_rgba(245,158,11,0.25)]' => $tone === 'running',
+                'bg-emerald-500' => $tone === 'done',
+                'bg-rose-500' => $tone === 'failed',
             ])
-            style="width: {{ max(0, min(100, (int) $getState())) }}%"
-        ></div>
-    </div>
+            title="{{ $task->type->value }} · {{ $task->status->value }}"
+        ></span>
+    @empty
+        <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
+    @endforelse
 </div>

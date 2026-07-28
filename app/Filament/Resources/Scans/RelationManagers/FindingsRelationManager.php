@@ -14,6 +14,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Phiki\Grammar\Grammar;
 
 class FindingsRelationManager extends RelationManager
 {
@@ -28,29 +29,52 @@ class FindingsRelationManager extends RelationManager
 
     public function infolist(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Finding')
-                ->schema([
-                    TextEntry::make('severity')
-                        ->badge()
-                        ->formatStateUsing(fn (FindingSeverity|string $state): string => static::severity($state)->label())
-                        ->color(fn (FindingSeverity|string $state): string => static::severity($state)->color()),
-                    TextEntry::make('title')->columnSpan(2),
-                    TextEntry::make('source')->badge(),
-                    TextEntry::make('category')->placeholder('—'),
-                    TextEntry::make('cve')->placeholder('—'),
-                    TextEntry::make('description')->placeholder('—')->columnSpanFull(),
-                ])
-                ->columns(3),
-            Section::make('Evidence')
-                ->schema([
-                    CodeEntry::make('evidence')
-                        ->hiddenLabel()
-                        ->columnSpanFull()
-                        ->copyable()
-                        ->placeholder('No evidence captured.'),
-                ]),
-        ]);
+        return $schema
+            ->columns(1)
+            ->components([
+                Section::make('Finding')
+                    ->columnSpanFull()
+                    ->schema([
+                        TextEntry::make('severity')
+                            ->badge()
+                            ->formatStateUsing(fn (FindingSeverity|string $state): string => static::severity($state)->label())
+                            ->color(fn (FindingSeverity|string $state): string => static::severity($state)->color()),
+                        TextEntry::make('title'),
+                        TextEntry::make('source')->badge(),
+                        TextEntry::make('category')->placeholder('—'),
+                        TextEntry::make('cve')->placeholder('—'),
+                        TextEntry::make('description')->placeholder('—'),
+                    ])
+                    ->columns(1),
+                Section::make('Evidence')
+                    ->columnSpanFull()
+                    ->schema([
+                        CodeEntry::make('evidence')
+                            ->hiddenLabel()
+                            ->columnSpanFull()
+                            ->grammar(Grammar::Txt)
+                            ->copyable()
+                            ->copyMessage('Evidence copied')
+                            ->placeholder('No evidence captured.')
+                            ->formatStateUsing(function (?array $state, Finding $record): ?string {
+                                $lines = $record->evidenceDetailLines();
+
+                                if ($lines !== []) {
+                                    return implode("\n", $lines);
+                                }
+
+                                if ($state === null || $state === []) {
+                                    return null;
+                                }
+
+                                return json_encode(
+                                    $state,
+                                    JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+                                );
+                            }),
+                    ])
+                    ->columns(1),
+            ]);
     }
 
     public function table(Table $table): Table

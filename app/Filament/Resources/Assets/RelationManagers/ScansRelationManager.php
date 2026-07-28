@@ -63,8 +63,7 @@ class ScansRelationManager extends RelationManager
                     }),
                 ViewColumn::make('progress')
                     ->label('Progress')
-                    ->view('filament.tables.columns.scan-progress')
-                    ->state(fn (Scan $record) => $record->progressPercent()),
+                    ->view('filament.tables.columns.scan-progress'),
                 ViewColumn::make('findings_summary')
                     ->label('Findings')
                     ->view('filament.tables.columns.scan-findings-summary')
