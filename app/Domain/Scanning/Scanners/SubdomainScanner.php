@@ -62,16 +62,10 @@ class SubdomainScanner extends AbstractScanner
 
         foreach (array_slice($words, 0, 50) as $word) {
             $host = $word.'.'.$asset->value;
+            $records = $this->resolveHostRecords($runner, $dig, $host);
 
-            try {
-                $lookup = $runner->run([$dig, '+short', $host, 'A'], 10);
-                $answers = array_values(array_filter(array_map('trim', explode("\n", $lookup->stdout))));
-
-                if ($answers !== []) {
-                    $discovered[$host] = $answers;
-                }
-            } catch (\Throwable) {
-                continue;
+            if ($records['ips'] !== [] || $records['cnames'] !== []) {
+                $discovered[$host] = $records;
             }
 
             usleep(100_000);
@@ -79,7 +73,7 @@ class SubdomainScanner extends AbstractScanner
 
         if (config('hackly.subdomain.ct_logs_enabled')) {
             foreach ($this->fetchCertificateTransparency($asset->value) as $host) {
-                $discovered[$host] = $discovered[$host] ?? [];
+                $discovered[$host] = $discovered[$host] ?? $this->resolveHostRecords($runner, $dig, $host);
             }
         }
 
@@ -91,23 +85,101 @@ class SubdomainScanner extends AbstractScanner
                 severity: FindingSeverity::Low,
                 source: 'dns',
                 category: 'nameservers',
+                description: 'NS: '.implode(', ', $ns),
                 evidence: ['ns' => $ns],
                 fingerprint: 'ns-'.$asset->id,
             );
         }
 
-        foreach ($discovered as $host => $ips) {
+        foreach ($discovered as $host => $records) {
+            $ips = $records['ips'] ?? [];
+            $cnames = $records['cnames'] ?? [];
+            $details = [];
+
+            if ($ips !== []) {
+                $details[] = 'IP: '.implode(', ', $ips);
+            }
+
+            if ($cnames !== []) {
+                $details[] = 'CNAME: '.implode(', ', $cnames);
+            }
+
+            if ($details === []) {
+                $details[] = 'Host discovered (no A/AAAA/CNAME resolved).';
+            }
+
             $findings[] = new ScannerFinding(
                 title: "Subdomain discovered: {$host}",
                 severity: FindingSeverity::Low,
                 source: 'dns',
                 category: 'subdomain',
-                evidence: ['host' => $host, 'ips' => $ips],
+                description: implode(' · ', $details),
+                evidence: [
+                    'host' => $host,
+                    'ips' => $ips,
+                    'cnames' => $cnames,
+                    'a' => $records['a'] ?? [],
+                    'aaaa' => $records['aaaa'] ?? [],
+                ],
                 fingerprint: 'subdomain-'.$asset->id.'-'.$host,
             );
         }
 
         return $findings;
+    }
+
+    /**
+     * @return array{ips: list<string>, a: list<string>, aaaa: list<string>, cnames: list<string>}
+     */
+    private function resolveHostRecords(BinaryRunner $runner, string $dig, string $host): array
+    {
+        $rawA = $this->digShort($runner, $dig, $host, 'A');
+        $rawAaaa = $this->digShort($runner, $dig, $host, 'AAAA');
+        $cnames = $this->digShort($runner, $dig, $host, 'CNAME');
+
+        $a = array_values(array_filter(
+            $rawA,
+            static fn (string $value): bool => filter_var($value, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false,
+        ));
+        $aaaa = array_values(array_filter(
+            $rawAaaa,
+            static fn (string $value): bool => filter_var($value, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false,
+        ));
+
+        // dig +short A often prepends CNAME targets before the final A record.
+        foreach ([...$rawA, ...$rawAaaa] as $value) {
+            if (
+                filter_var($value, FILTER_VALIDATE_IP) === false
+                && filled($value)
+                && ! in_array($value, $cnames, true)
+            ) {
+                $cnames[] = $value;
+            }
+        }
+
+        return [
+            'a' => $a,
+            'aaaa' => $aaaa,
+            'cnames' => array_values(array_unique($cnames)),
+            'ips' => array_values(array_unique([...$a, ...$aaaa])),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function digShort(BinaryRunner $runner, string $dig, string $host, string $type): array
+    {
+        try {
+            $lookup = $runner->run([$dig, '+short', $host, $type], 10);
+
+            return array_values(array_filter(array_map(
+                static fn (string $line): string => rtrim(trim($line), '.'),
+                explode("\n", $lookup->stdout),
+            )));
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     /**

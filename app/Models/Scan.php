@@ -47,7 +47,7 @@ class Scan extends Model
 
     public function tasks(): HasMany
     {
-        return $this->hasMany(ScanTask::class);
+        return $this->hasMany(ScanTask::class)->orderBy('sort_order');
     }
 
     public function findings(): HasMany

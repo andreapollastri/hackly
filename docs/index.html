@@ -811,11 +811,12 @@
         </div>
         <pre><span class="t-dim">$</span> <span class="t-cmd">php artisan hackly:scan</span> <span class="t-arg">example.com</span> <span class="t-flag">--profile=standard</span>
 <span class="t-dim">→</span> Target verified via DNS TXT
-<span class="t-dim">→</span> Dispatching 5 tasks…
+<span class="t-dim">→</span> Dispatching 6 tasks…
 
   <span class="t-pass">✓</span> dns_info          <span class="t-dim">dig · whois</span>
   <span class="t-pass">✓</span> port_scan         <span class="t-dim">nmap top-50</span>
   <span class="t-pass">✓</span> subdomain_enum    <span class="t-dim">wordlist + CT</span>
+  <span class="t-pass">✓</span> tech_fingerprint  <span class="t-dim">PHP / Laravel</span>
   <span class="t-warn">~</span> path_discovery    <span class="t-dim">soft wordlist</span>
   <span class="t-hi">!</span> nuclei_owasp      <span class="t-fail">2 HIGH · 4 MEDIUM</span>
 
@@ -848,24 +849,30 @@
         </div>
         <div class="coverage-row">
           <span class="n">03</span>
+          <span class="name">Tech fingerprint</span>
+          <span class="desc">Soft HTTP checks for PHP/Laravel headers, cookies, and debug pages.</span>
+          <span class="tag">quick · standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">04</span>
           <span class="name">Subdomains</span>
           <span class="desc">Soft wordlist + Certificate Transparency logs.</span>
           <span class="tag">standard · deep</span>
         </div>
         <div class="coverage-row">
-          <span class="n">04</span>
-          <span class="name">Path discovery</span>
-          <span class="desc">Soft wordlist / Nuclei paths — no aggressive brute-force.</span>
-          <span class="tag">standard · deep</span>
-        </div>
-        <div class="coverage-row">
           <span class="n">05</span>
-          <span class="name">Nuclei templates</span>
-          <span class="desc">OWASP-oriented vulnerability templates via <code>nuclei</code>.</span>
+          <span class="name">Path discovery</span>
+          <span class="desc">Soft wordlist / Nuclei — Laravel exposures (<code>.env</code>, Telescope, Horizon…).</span>
           <span class="tag">standard · deep</span>
         </div>
         <div class="coverage-row">
           <span class="n">06</span>
+          <span class="name">Nuclei templates</span>
+          <span class="desc">OWASP + PHP/Laravel/dotenv vulnerability templates via <code>nuclei</code>.</span>
+          <span class="tag">standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">07</span>
           <span class="name">OWASP ZAP DAST</span>
           <span class="desc">Baseline DAST for deep profile — longer timeout, cooldown enforced.</span>
           <span class="tag">deep</span>
@@ -1076,7 +1083,7 @@ php artisan hackly:check-binaries">Copy</button>
               <tbody>
                 <tr>
                   <td class="strong">quick</td>
-                  <td><code>dns_info</code>, <code>port_scan</code></td>
+                  <td><code>dns_info</code>, <code>port_scan</code>, <code>tech_fingerprint</code></td>
                 </tr>
                 <tr>
                   <td class="strong">standard</td>

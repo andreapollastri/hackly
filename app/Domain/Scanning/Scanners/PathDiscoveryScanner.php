@@ -70,7 +70,7 @@ class PathDiscoveryScanner extends AbstractScanner
                     '-u',
                     $asset->httpBaseUrl(),
                     '-tags',
-                    'discovery,exposure,config',
+                    (string) config('hackly.path_discovery.tags', 'discovery,exposure,config,laravel,php,dotenv'),
                     '-rate-limit',
                     (string) config('hackly.path_discovery.rate_limit', 20),
                     '-c',
@@ -102,23 +102,34 @@ class PathDiscoveryScanner extends AbstractScanner
                     continue;
                 }
 
-                $findings[] = $this->findingFromNucleiRow($row, $asset);
+                $finding = $this->findingFromNucleiRow($row, $asset);
+                if ($finding !== null) {
+                    $findings[] = $finding;
+                }
             }
-
-            return array_values(array_filter($findings));
         }
 
-        // Soft HTTP path discovery fallback (no exploit payloads).
+        // Soft HTTP path probing always runs (covers PHP/Laravel paths even when Nuclei is used).
+        return array_merge($findings, $this->probeWordlist($asset));
+    }
+
+    /**
+     * @return list<ScannerFinding>
+     */
+    private function probeWordlist(Asset $asset): array
+    {
         $wordlistPath = (string) config('hackly.path_discovery.wordlist');
         $paths = is_file($wordlistPath)
             ? array_values(array_filter(array_map('trim', file($wordlistPath, FILE_IGNORE_NEW_LINES))))
-            : ['/', '/robots.txt', '/sitemap.xml', '/.well-known/security.txt', '/health', '/api', '/login', '/admin'];
+            : ['/', '/robots.txt', '/sitemap.xml', '/.well-known/security.txt', '/health', '/api', '/login', '/admin', '/.env', '/up'];
 
+        $maxPaths = max(1, (int) config('hackly.path_discovery.max_paths', 80));
         $base = rtrim($asset->httpBaseUrl(), '/');
         $rateLimit = max(1, (int) config('hackly.path_discovery.rate_limit', 20));
         $delayMicros = (int) (1_000_000 / $rateLimit);
+        $findings = [];
 
-        foreach (array_slice($paths, 0, 40) as $path) {
+        foreach (array_slice($paths, 0, $maxPaths) as $path) {
             $url = $base.(str_starts_with($path, '/') ? $path : '/'.$path);
 
             try {
@@ -132,7 +143,7 @@ class PathDiscoveryScanner extends AbstractScanner
                 if (in_array($status, [200, 201, 204, 301, 302, 307, 401, 403], true)) {
                     $findings[] = new ScannerFinding(
                         title: "Path discovered: {$path} (HTTP {$status})",
-                        severity: FindingSeverity::Low,
+                        severity: $this->pathSeverity($path, $status),
                         source: 'http',
                         category: 'path_discovery',
                         evidence: [
@@ -150,6 +161,36 @@ class PathDiscoveryScanner extends AbstractScanner
         }
 
         return $findings;
+    }
+
+    private function pathSeverity(string $path, int $status): FindingSeverity
+    {
+        $sensitive = [
+            '/.env',
+            '/.env.backup',
+            '/.env.old',
+            '/.env.local',
+            '/.env.production',
+            '/.git/HEAD',
+            '/composer.json',
+            '/composer.lock',
+            '/vendor/',
+            '/vendor/composer/installed.json',
+            '/storage/logs/laravel.log',
+            '/phpinfo.php',
+            '/info.php',
+            '/telescope',
+            '/horizon',
+            '/_debugbar',
+            '/_ignition',
+            '/log-viewer',
+        ];
+
+        if (in_array($path, $sensitive, true) && in_array($status, [200, 201, 204], true)) {
+            return FindingSeverity::Medium;
+        }
+
+        return FindingSeverity::Low;
     }
 
     /**

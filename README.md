@@ -27,9 +27,10 @@ Built with **Laravel 13** and **Filament 5**.
 |------|------|----------|
 | DNS / WHOIS | `dig`, `whois` | quick · standard · deep |
 | Port scan | `nmap` | quick · standard · deep |
+| Tech fingerprint | soft HTTP (PHP/Laravel headers & cookies) | quick · standard · deep |
 | Subdomain enum | soft wordlist + CT logs | standard · deep |
-| Path discovery | soft wordlist / Nuclei | standard · deep |
-| Vulnerability templates | `nuclei` | standard · deep |
+| Path discovery | soft wordlist / Nuclei (incl. Laravel exposures) | standard · deep |
+| Vulnerability templates | `nuclei` (+ laravel/php/dotenv tags) | standard · deep |
 | DAST baseline | OWASP ZAP | deep |
 
 ---

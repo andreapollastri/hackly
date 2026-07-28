@@ -71,11 +71,13 @@ return [
         'quick' => [
             'dns_info',
             'port_scan',
+            'tech_fingerprint',
         ],
         'standard' => [
             'dns_info',
             'port_scan',
             'subdomain_enum',
+            'tech_fingerprint',
             'path_discovery',
             'nuclei_owasp',
         ],
@@ -83,6 +85,7 @@ return [
             'dns_info',
             'port_scan',
             'subdomain_enum',
+            'tech_fingerprint',
             'path_discovery',
             'nuclei_owasp',
             'zap_baseline',
@@ -99,6 +102,7 @@ return [
         'dns_info' => 'default',
         'subdomain_enum' => 'default',
         'port_scan' => 'default',
+        'tech_fingerprint' => 'default',
         'path_discovery' => 'default',
         'nuclei_owasp' => 'default',
         'zap_baseline' => 'default',
@@ -130,6 +134,7 @@ return [
         // Writable HOME for queue workers (config/cache/templates). Avoids CWD permission errors.
         'home' => env('HACKLY_NUCLEI_HOME', storage_path('app/nuclei-home')),
         'templates_path' => env('HACKLY_NUCLEI_TEMPLATES'),
+        'tags' => env('HACKLY_NUCLEI_TAGS', 'owasp,cve,misconfig,exposure,vuln,laravel,php,dotenv'),
     ],
 
     'zap' => [
@@ -137,10 +142,16 @@ return [
         'max_duration_minutes' => (int) env('HACKLY_ZAP_MAX_DURATION', 10),
     ],
 
+    'tech_fingerprint' => [
+        'timeout' => (int) env('HACKLY_TECH_FINGERPRINT_TIMEOUT', 60),
+    ],
+
     'path_discovery' => [
         'wordlist' => storage_path('app/wordlists/paths-soft.txt'),
         'timeout' => (int) env('HACKLY_PATH_TIMEOUT', 300),
         'rate_limit' => (int) env('HACKLY_PATH_RATE_LIMIT', 20),
+        'max_paths' => (int) env('HACKLY_PATH_MAX_PATHS', 80),
+        'tags' => env('HACKLY_PATH_TAGS', 'discovery,exposure,config,laravel,php,dotenv'),
     ],
 
     'storage_path' => storage_path('app/scans'),

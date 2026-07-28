@@ -59,7 +59,7 @@ class NucleiScanner extends AbstractScanner
                 '-u',
                 $asset->httpBaseUrl(),
                 '-tags',
-                'owasp,cve,misconfig,exposure,vuln',
+                (string) config('hackly.nuclei.tags', 'owasp,cve,misconfig,exposure,vuln,laravel,php,dotenv'),
                 '-severity',
                 'info,low,medium,high,critical',
                 '-rate-limit',

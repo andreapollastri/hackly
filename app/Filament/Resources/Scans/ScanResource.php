@@ -5,10 +5,13 @@ namespace App\Filament\Resources\Scans;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
+use App\Enums\ScanTaskStatus;
 use App\Filament\Resources\Scans\Pages\ManageScans;
 use App\Filament\Resources\Scans\Pages\ViewScan;
 use App\Filament\Resources\Scans\RelationManagers\FindingsRelationManager;
+use App\Models\Finding;
 use App\Models\Scan;
+use App\Models\ScanTask;
 use BackedEnum;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\Action;
@@ -18,12 +21,15 @@ use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ScanResource extends Resource
@@ -62,17 +68,81 @@ class ScanResource extends Resource
             TextEntry::make('error_message')->columnSpanFull()->placeholder('—'),
             RepeatableEntry::make('tasks')
                 ->label('Tasks')
+                ->contained(false)
                 ->schema([
-                    TextEntry::make('type')->badge(),
-                    TextEntry::make('status')->badge(),
-                    TextEntry::make('scheduled_at')->dateTime()->label('Scheduled'),
-                    TextEntry::make('started_at')->dateTime()->placeholder('—'),
-                    TextEntry::make('finished_at')->dateTime()->placeholder('—'),
-                    TextEntry::make('error_message')->placeholder('—')->columnSpanFull(),
+                    Section::make(fn (?ScanTask $record): string => $record?->type?->value ?? 'Task')
+                        ->description(fn (?ScanTask $record): ?string => static::taskAccordionDescription($record))
+                        ->icon(fn (?ScanTask $record): Heroicon => match ($record?->status) {
+                            ScanTaskStatus::Completed => Heroicon::OutlinedCheckCircle,
+                            ScanTaskStatus::Failed => Heroicon::OutlinedXCircle,
+                            ScanTaskStatus::Running => Heroicon::OutlinedArrowPath,
+                            ScanTaskStatus::Skipped => Heroicon::OutlinedMinusCircle,
+                            default => Heroicon::OutlinedClock,
+                        })
+                        ->iconColor(fn (?ScanTask $record): string => match ($record?->status) {
+                            ScanTaskStatus::Completed => 'success',
+                            ScanTaskStatus::Failed => 'danger',
+                            ScanTaskStatus::Running, ScanTaskStatus::Queued => 'warning',
+                            default => 'gray',
+                        })
+                        ->extraAttributes(fn (?ScanTask $record): array => [
+                            'class' => match ($record?->status) {
+                                ScanTaskStatus::Completed => 'hackly-task-accordion hackly-task-accordion--success',
+                                ScanTaskStatus::Failed => 'hackly-task-accordion hackly-task-accordion--danger',
+                                default => 'hackly-task-accordion',
+                            },
+                        ])
+                        ->compact()
+                        ->collapsible()
+                        ->collapsed()
+                        ->schema([
+                            TextEntry::make('status')
+                                ->badge()
+                                ->color(fn (ScanTaskStatus $state): string => match ($state) {
+                                    ScanTaskStatus::Completed => 'success',
+                                    ScanTaskStatus::Failed => 'danger',
+                                    ScanTaskStatus::Running, ScanTaskStatus::Queued => 'warning',
+                                    default => 'gray',
+                                }),
+                            TextEntry::make('scheduled_at')->dateTime()->label('Scheduled')->placeholder('—'),
+                            TextEntry::make('started_at')->dateTime()->placeholder('—'),
+                            TextEntry::make('finished_at')->dateTime()->placeholder('—'),
+                            TextEntry::make('error_message')
+                                ->placeholder('—')
+                                ->columnSpanFull()
+                                ->color(fn (?string $state): string => filled($state) ? 'danger' : 'gray'),
+                        ])
+                        ->columns(2),
                 ])
-                ->columns(3)
                 ->columnSpanFull(),
         ]);
+    }
+
+    protected static function taskAccordionDescription(?ScanTask $record): ?string
+    {
+        if (! $record) {
+            return null;
+        }
+
+        $status = $record->status?->value ?? 'unknown';
+
+        if ($record->status === ScanTaskStatus::Failed && filled($record->error_message)) {
+            return $status.' · '.str($record->error_message)->limit(90);
+        }
+
+        if ($record->finished_at) {
+            return $status.' · finished '.$record->finished_at->diffForHumans();
+        }
+
+        if ($record->started_at) {
+            return $status.' · started '.$record->started_at->diffForHumans();
+        }
+
+        if ($record->scheduled_at) {
+            return $status.' · scheduled '.$record->scheduled_at->diffForHumans();
+        }
+
+        return $status;
     }
 
     public static function table(Table $table): Table
@@ -126,6 +196,11 @@ class ScanResource extends Resource
                     ->icon(Heroicon::OutlinedDocumentArrowDown)
                     ->color('gray')
                     ->action(fn (Scan $record): StreamedResponse => static::downloadReport($record)),
+                Action::make('exportMarkdown')
+                    ->label('MD')
+                    ->icon(Heroicon::OutlinedDocumentText)
+                    ->color('gray')
+                    ->action(fn (Scan $record): StreamedResponse => static::downloadMarkdownReport($record)),
                 ViewAction::make(),
             ])
             ->toolbarActions([
@@ -157,25 +232,9 @@ class ScanResource extends Resource
 
     public static function downloadReport(Scan $scan): StreamedResponse
     {
-        $scan->load(['asset', 'tasks', 'findings', 'requester']);
+        $payload = static::reportPayload($scan);
 
-        $findings = $scan->findings
-            ->sortByDesc(fn ($finding) => $finding->severity->rank())
-            ->values();
-
-        $summary = [
-            'high' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::High)->count(),
-            'medium' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::Medium)->count(),
-            'low' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::Low)->count(),
-        ];
-
-        $pdf = Pdf::loadView('reports.scan', [
-            'scan' => $scan,
-            'findings' => $findings,
-            'summary' => $summary,
-            'generatedAt' => now(),
-        ])->setPaper('a4');
-
+        $pdf = Pdf::loadView('reports.scan', $payload)->setPaper('a4');
         $filename = 'hackly-scan-'.substr($scan->id, 0, 8).'.pdf';
 
         return response()->streamDownload(
@@ -183,5 +242,43 @@ class ScanResource extends Resource
             $filename,
             ['Content-Type' => 'application/pdf'],
         );
+    }
+
+    public static function downloadMarkdownReport(Scan $scan): StreamedResponse
+    {
+        $payload = static::reportPayload($scan);
+        $markdown = view('reports.scan-md', $payload)->render();
+        $filename = 'hackly-scan-'.substr($scan->id, 0, 8).'.md';
+
+        return response()->streamDownload(
+            function () use ($markdown): void {
+                echo $markdown;
+            },
+            $filename,
+            ['Content-Type' => 'text/markdown; charset=UTF-8'],
+        );
+    }
+
+    /**
+     * @return array{scan: Scan, findings: Collection<int, Finding>, summary: array{high: int, medium: int, low: int}, generatedAt: Carbon}
+     */
+    public static function reportPayload(Scan $scan): array
+    {
+        $scan->loadMissing(['asset', 'tasks', 'findings', 'requester']);
+
+        $findings = $scan->findings
+            ->sortByDesc(fn ($finding) => $finding->severity->rank())
+            ->values();
+
+        return [
+            'scan' => $scan,
+            'findings' => $findings,
+            'summary' => [
+                'high' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::High)->count(),
+                'medium' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::Medium)->count(),
+                'low' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::Low)->count(),
+            ],
+            'generatedAt' => now(),
+        ];
     }
 }

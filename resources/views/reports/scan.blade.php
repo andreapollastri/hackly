@@ -119,9 +119,33 @@
             color: #0f172a;
         }
         .finding-desc {
-            color: #64748b;
-            margin-top: 3px;
+            color: #334155;
+            margin-top: 4px;
             font-size: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .finding-evidence {
+            margin-top: 6px;
+            padding: 6px 8px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 9px;
+            color: #0f172a;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: DejaVu Sans Mono, monospace;
+            line-height: 1.4;
+        }
+        .finding-evidence-label {
+            font-family: DejaVu Sans, sans-serif;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 8px;
+            margin-bottom: 3px;
         }
         .footer {
             margin-top: 24px;
@@ -266,6 +290,7 @@
             </thead>
             <tbody>
                 @foreach ($findings as $finding)
+                    @php($evidenceLines = $finding->evidenceDetailLines())
                     <tr>
                         <td>
                             <span class="badge" style="background:{{ $finding->severity->hex() }};">
@@ -274,8 +299,14 @@
                         </td>
                         <td>
                             <div class="finding-title">{{ $finding->title }}</div>
-                            @if ($finding->description)
-                                <div class="finding-desc">{{ \Illuminate\Support\Str::limit($finding->description, 220) }}</div>
+                            @if (filled($finding->description))
+                                <div class="finding-desc">{{ $finding->description }}</div>
+                            @endif
+                            @if ($evidenceLines !== [])
+                                <div class="finding-evidence">
+                                    <div class="finding-evidence-label">Detail</div>
+                                    {{ implode("\n", $evidenceLines) }}
+                                </div>
                             @endif
                         </td>
                         <td>{{ $finding->source }}</td>
