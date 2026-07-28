@@ -76,6 +76,11 @@ class ScansRelationManager extends RelationManager
                     ->icon(Heroicon::OutlinedDocumentArrowDown)
                     ->color('gray')
                     ->action(fn (Scan $record): StreamedResponse => ScanResource::downloadReport($record)),
+                Action::make('exportMarkdown')
+                    ->label('MD')
+                    ->icon(Heroicon::OutlinedDocumentText)
+                    ->color('gray')
+                    ->action(fn (Scan $record): StreamedResponse => ScanResource::downloadMarkdownReport($record)),
                 ViewAction::make()
                     ->url(fn (Scan $record): string => ScanResource::getUrl('view', ['record' => $record])),
             ])
