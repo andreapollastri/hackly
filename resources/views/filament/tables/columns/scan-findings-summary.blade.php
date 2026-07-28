@@ -4,20 +4,25 @@
 @endphp
 
 <div
-    class="fi-scan-findings-summary flex items-center gap-1.5"
+    class="fi-scan-findings-summary flex items-center gap-1"
     wire:key="scan-findings-{{ $getRecord()->id }}-{{ $summary['high'] }}-{{ $summary['medium'] }}-{{ $summary['low'] }}"
-    title="High {{ $summary['high'] }} · Medium {{ $summary['medium'] }} · Low {{ $summary['low'] }}"
 >
     <span
-        class="inline-flex min-w-7 items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-bold text-white"
-        style="background:#dc2626;"
-    >{{ $summary['high'] }}</span>
+        class="fi-badge fi-size-sm fi-color-danger {{ $summary['high'] === 0 ? 'fi-incomplete opacity-50' : '' }}"
+        title="High"
+    >
+        <span class="fi-badge-label">{{ $summary['high'] }}</span>
+    </span>
     <span
-        class="inline-flex min-w-7 items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-bold text-white"
-        style="background:#ea580c;"
-    >{{ $summary['medium'] }}</span>
+        class="fi-badge fi-size-sm fi-color-warning {{ $summary['medium'] === 0 ? 'fi-incomplete opacity-50' : '' }}"
+        title="Medium"
+    >
+        <span class="fi-badge-label">{{ $summary['medium'] }}</span>
+    </span>
     <span
-        class="inline-flex min-w-7 items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-bold text-white"
-        style="background:#16a34a;"
-    >{{ $summary['low'] }}</span>
+        class="fi-badge fi-size-sm fi-color-success {{ $summary['low'] === 0 ? 'fi-incomplete opacity-50' : '' }}"
+        title="Low"
+    >
+        <span class="fi-badge-label">{{ $summary['low'] }}</span>
+    </span>
 </div>
