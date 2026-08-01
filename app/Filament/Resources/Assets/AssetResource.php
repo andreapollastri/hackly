@@ -10,12 +10,14 @@ use App\Enums\ScanTaskStatus;
 use App\Filament\Resources\Assets\Pages\EditAsset;
 use App\Filament\Resources\Assets\Pages\ListAssets;
 use App\Filament\Resources\Assets\Pages\ViewAsset;
+use App\Filament\Resources\Assets\RelationManagers\RepositoriesRelationManager;
 use App\Filament\Resources\Assets\RelationManagers\ScansRelationManager;
 use App\Models\Asset;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -200,20 +202,30 @@ class AssetResource extends Resource
                             ->default(ScanProfile::Standard->value)
                             ->required()
                             ->native(false),
+                        Toggle::make('include_repos')
+                            ->label('Include linked repositories')
+                            ->helperText('Also run repo SAST/SCA scans for every GitHub repo linked to this target.')
+                            ->default(false)
+                            ->visible(fn (Asset $record): bool => $record->repositories()->exists()),
                     ])
                     ->action(function (Asset $record, array $data) {
                         try {
-                            $scan = app(ScanDispatcher::class)->createScan(
+                            $result = app(ScanDispatcher::class)->createScan(
                                 $record,
                                 ScanProfile::from($data['profile']),
                                 auth()->user(),
+                                includeLinkedRepos: (bool) ($data['include_repos'] ?? false),
                             );
 
+                            $scan = $result['scan'];
                             $queued = $scan->tasks->where('status', ScanTaskStatus::Queued)->count();
+                            $repoCount = count($result['linked_repo_scans']);
 
                             Notification::make()
                                 ->title("Scan {$scan->id} started")
-                                ->body("{$queued} task(s) dispatched to the queue. Watch progress under Scans.")
+                                ->body($repoCount > 0
+                                    ? "{$queued} target task(s) + {$repoCount} linked repo scan(s) queued."
+                                    : "{$queued} task(s) dispatched to the queue. Watch progress under Scans.")
                                 ->success()
                                 ->send();
                         } catch (\Throwable $e) {
@@ -230,6 +242,7 @@ class AssetResource extends Resource
     public static function getRelations(): array
     {
         return [
+            RepositoriesRelationManager::class,
             ScansRelationManager::class,
         ];
     }

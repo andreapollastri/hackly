@@ -37,6 +37,12 @@ return [
                 ? '/Applications/ZAP.app/Contents/Java/zap.sh'
                 : 'zap.sh'
         ),
+        'git' => env('HACKLY_GIT', 'git'),
+        'composer' => env('HACKLY_COMPOSER', 'composer'),
+        'semgrep' => env('HACKLY_SEMGREP', 'semgrep'),
+        'trivy' => env('HACKLY_TRIVY', 'trivy'),
+        'gitleaks' => env('HACKLY_GITLEAKS', 'gitleaks'),
+        'checkov' => env('HACKLY_CHECKOV', 'checkov'),
     ],
 
     /*
@@ -223,6 +229,119 @@ return [
 
     'queue' => [
         'job_timeout' => (int) env('HACKLY_JOB_TIMEOUT', 960),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | GitHub repository scanning (Aikido-style orchestration for Laravel/PHP)
+    |--------------------------------------------------------------------------
+    |
+    | Tools: Semgrep (SAST), Trivy (SCA), Gitleaks (secrets), Checkov (IaC),
+    | Composer audit + OSV, plus Hackly Laravel static/live pentests.
+    | Post-processing: dedupe across tools, PHP reachability, noise filters.
+    |
+    */
+
+    'repo' => [
+        'workspace_path' => env('HACKLY_REPO_WORKSPACE', storage_path('app/repo-scans')),
+        'storage_path' => env('HACKLY_REPO_OUTPUTS', storage_path('app/repo-scan-outputs')),
+        'cleanup_workspace' => (bool) env('HACKLY_REPO_CLEANUP', true),
+        'clone_timeout' => (int) env('HACKLY_REPO_CLONE_TIMEOUT', 300),
+        'clone_depth' => (int) env('HACKLY_REPO_CLONE_DEPTH', 1),
+        'job_timeout' => (int) env('HACKLY_REPO_JOB_TIMEOUT', 960),
+        'nightly_at' => env('HACKLY_REPO_NIGHTLY_AT', '02:30'),
+        'nightly_timezone' => env('HACKLY_REPO_NIGHTLY_TZ', env('APP_TIMEZONE', 'UTC')),
+        // hackly:nightly uses these profiles (override via CLI flags).
+        'nightly_repo_profile' => env('HACKLY_NIGHTLY_REPO_PROFILE', 'standard'),
+        'nightly_target_profile' => env('HACKLY_NIGHTLY_TARGET_PROFILE', 'deep'),
+
+        'profiles' => [
+            'quick' => [
+                'composer_osv',
+                'gitleaks_secrets',
+                'laravel_php_audit',
+            ],
+            'standard' => [
+                'semgrep_sast',
+                'trivy_sca',
+                'gitleaks_secrets',
+                'composer_osv',
+                'laravel_php_audit',
+                'laravel_live_pentest',
+            ],
+            'deep' => [
+                'semgrep_sast',
+                'trivy_sca',
+                'gitleaks_secrets',
+                'checkov_iac',
+                'composer_osv',
+                'laravel_php_audit',
+                'laravel_live_pentest',
+            ],
+        ],
+
+        'queues' => [
+            'semgrep_sast' => 'default',
+            'trivy_sca' => 'default',
+            'gitleaks_secrets' => 'default',
+            'checkov_iac' => 'default',
+            'composer_osv' => 'default',
+            'laravel_php_audit' => 'default',
+            'laravel_live_pentest' => 'default',
+        ],
+
+        'semgrep' => [
+            'timeout' => (int) env('HACKLY_SEMGREP_TIMEOUT', 600),
+            // PHP-focused rulesets; add comma-separated configs if needed.
+            'config' => env('HACKLY_SEMGREP_CONFIG', 'p/php'),
+        ],
+
+        'trivy' => [
+            'timeout' => (int) env('HACKLY_TRIVY_TIMEOUT', 600),
+        ],
+
+        'gitleaks' => [
+            'timeout' => (int) env('HACKLY_GITLEAKS_TIMEOUT', 300),
+        ],
+
+        'checkov' => [
+            'timeout' => (int) env('HACKLY_CHECKOV_TIMEOUT', 600),
+        ],
+
+        'composer' => [
+            'timeout' => (int) env('HACKLY_COMPOSER_AUDIT_TIMEOUT', 300),
+            'osv_enabled' => (bool) env('HACKLY_OSV_ENABLED', true),
+        ],
+
+        'laravel_audit' => [
+            'timeout' => (int) env('HACKLY_LARAVEL_AUDIT_TIMEOUT', 120),
+        ],
+
+        'laravel_live' => [
+            'timeout' => (int) env('HACKLY_LARAVEL_LIVE_TIMEOUT', 180),
+            'request_timeout' => (int) env('HACKLY_LARAVEL_LIVE_REQUEST_TIMEOUT', 10),
+        ],
+
+        'noise' => [
+            // When true, noisy findings are dropped instead of kept with noise_filtered=true.
+            'drop_filtered' => (bool) env('HACKLY_REPO_DROP_NOISE', false),
+            'secret_placeholders' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env(
+                    'HACKLY_REPO_SECRET_PLACEHOLDERS',
+                    'changeme,change-me,your-api-key,your_api_key,xxx,todo,placeholder,example,dummy,test1234,password,secret'
+                ))
+            ))),
+            'suppress_rule_ids' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env('HACKLY_REPO_SUPPRESS_RULES', ''))
+            ))),
+        ],
+
+        'reachability' => [
+            // When true, unreachable dependency findings are omitted from the final set.
+            'hide_unreachable' => (bool) env('HACKLY_REPO_HIDE_UNREACHABLE', false),
+        ],
     ],
 
 ];

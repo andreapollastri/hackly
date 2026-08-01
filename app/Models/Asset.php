@@ -7,6 +7,7 @@ use App\Enums\AssetType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Asset extends Model
@@ -63,6 +64,13 @@ class Asset extends Model
     public function findings(): HasMany
     {
         return $this->hasMany(Finding::class);
+    }
+
+    public function repositories(): BelongsToMany
+    {
+        return $this->belongsToMany(Repository::class)
+            ->withTimestamps()
+            ->using(AssetRepository::class);
     }
 
     public function targetKey(): string

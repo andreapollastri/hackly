@@ -2,6 +2,7 @@
 
 namespace App\Domain\Scanning\Services;
 
+use App\Domain\RepoScanning\Services\RepoScanDispatcher;
 use App\Domain\Scanning\DTO\ScannerFinding;
 use App\Enums\FindingSeverity;
 use App\Enums\FindingStatus;
@@ -18,6 +19,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Throwable;
 
 class ScanDispatcher
 {
@@ -27,14 +29,23 @@ class ScanDispatcher
         private readonly DnsOwnershipVerifier $ownershipVerifier,
     ) {}
 
-    public function createScan(Asset $asset, ScanProfile $profile, ?User $user = null): Scan
-    {
+    /**
+     * @return array{scan: Scan, linked_repo_scans: list<string>}
+     */
+    public function createScan(
+        Asset $asset,
+        ScanProfile $profile,
+        ?User $user = null,
+        bool $includeLinkedRepos = false,
+        ?ScanProfile $linkedRepoProfile = null,
+        bool $ignoreCooldown = false,
+    ): array {
         $this->guard->assertAllowed($asset);
         $this->ownershipVerifier->assertVerified($asset);
 
         $limiter = TargetRateLimiter::make();
 
-        if ($profile === ScanProfile::Deep) {
+        if ($profile === ScanProfile::Deep && ! $ignoreCooldown) {
             $cooldownHours = $limiter->deepCooldownHours();
             $recentDeep = Scan::query()
                 ->where('asset_id', $asset->id)
@@ -54,7 +65,7 @@ class ScanDispatcher
             throw new InvalidArgumentException("Unknown scan profile [{$profile->value}].");
         }
 
-        $scan = DB::transaction(function () use ($asset, $profile, $user, $taskTypes, $limiter) {
+        $scan = DB::transaction(function () use ($asset, $profile, $user, $taskTypes, $limiter, $includeLinkedRepos) {
             $scan = Scan::query()->create([
                 'asset_id' => $asset->id,
                 'profile' => $profile,
@@ -108,6 +119,7 @@ class ScanDispatcher
                 'asset' => $asset->value,
                 'profile' => $profile->value,
                 'user_id' => $user?->id,
+                'include_linked_repos' => $includeLinkedRepos,
             ]);
 
             return $scan->fresh('tasks');
@@ -115,7 +127,54 @@ class ScanDispatcher
 
         $this->dispatchScanTasks($scan);
 
-        return $scan->fresh('tasks');
+        $linkedRepoScans = [];
+
+        if ($includeLinkedRepos) {
+            $linkedRepoScans = $this->dispatchLinkedRepoScans(
+                $asset,
+                $linkedRepoProfile ?? $profile,
+                $user,
+            );
+        }
+
+        return [
+            'scan' => $scan->fresh('tasks'),
+            'linked_repo_scans' => $linkedRepoScans,
+        ];
+    }
+
+    /**
+     * @return list<string> Repo scan IDs
+     */
+    private function dispatchLinkedRepoScans(Asset $asset, ScanProfile $profile, ?User $user): array
+    {
+        $repoDispatcher = app(RepoScanDispatcher::class);
+        $scanIds = [];
+
+        $repos = $asset->repositories()
+            ->where('status', 'active')
+            ->with('credential')
+            ->get();
+
+        foreach ($repos as $repository) {
+            try {
+                $result = $repoDispatcher->createScan(
+                    $repository,
+                    $profile,
+                    $user,
+                    includeLinkedTargets: false,
+                );
+                $scanIds[] = $result['scan']->id;
+            } catch (Throwable $e) {
+                Log::warning('hackly.scan.linked_repo_scan.failed', [
+                    'asset' => $asset->value,
+                    'repository' => $repository->full_name,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $scanIds;
     }
 
     public function dispatchScanTasks(Scan $scan): int
@@ -179,10 +238,10 @@ class ScanDispatcher
         foreach ($findings as $finding) {
             Finding::query()->updateOrCreate(
                 [
-                    'asset_id' => $asset->id,
                     'fingerprint' => $finding->resolvedFingerprint($asset->id),
                 ],
                 [
+                    'asset_id' => $asset->id,
                     'scan_id' => $task->scan_id,
                     'scan_task_id' => $task->id,
                     'severity' => $finding->severity,
@@ -250,10 +309,10 @@ class ScanDispatcher
 
         Finding::query()->updateOrCreate(
             [
-                'asset_id' => $assetId,
                 'fingerprint' => 'scan-diff-'.$assetId,
             ],
             [
+                'asset_id' => $assetId,
                 'scan_id' => $scan->id,
                 'scan_task_id' => null,
                 'severity' => FindingSeverity::Low,

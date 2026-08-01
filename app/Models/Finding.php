@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\FindingSeverity;
 use App\Enums\FindingStatus;
+use App\Enums\Reachability;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,14 +15,20 @@ class Finding extends Model
 
     protected $fillable = [
         'asset_id',
+        'repository_id',
         'scan_id',
+        'repo_scan_id',
         'scan_task_id',
+        'repo_scan_task_id',
         'severity',
         'title',
         'category',
         'cve',
         'source',
         'status',
+        'reachability',
+        'noise_filtered',
+        'confidence',
         'fingerprint',
         'evidence',
         'description',
@@ -32,6 +39,8 @@ class Finding extends Model
         return [
             'severity' => FindingSeverity::class,
             'status' => FindingStatus::class,
+            'reachability' => Reachability::class,
+            'noise_filtered' => 'boolean',
             'evidence' => 'array',
         ];
     }
@@ -41,14 +50,29 @@ class Finding extends Model
         return $this->belongsTo(Asset::class);
     }
 
+    public function repository(): BelongsTo
+    {
+        return $this->belongsTo(Repository::class);
+    }
+
     public function scan(): BelongsTo
     {
         return $this->belongsTo(Scan::class);
     }
 
+    public function repoScan(): BelongsTo
+    {
+        return $this->belongsTo(RepoScan::class);
+    }
+
     public function scanTask(): BelongsTo
     {
         return $this->belongsTo(ScanTask::class);
+    }
+
+    public function repoScanTask(): BelongsTo
+    {
+        return $this->belongsTo(RepoScanTask::class);
     }
 
     /**
@@ -103,6 +127,14 @@ class Finding extends Model
             'product' => 'Product',
             'version' => 'Version',
             'preview' => 'Preview',
+            'file' => 'File',
+            'line' => 'Line',
+            'package' => 'Package',
+            'package_version' => 'Package version',
+            'rule_id' => 'Rule',
+            'repository' => 'Repository',
+            'commit_sha' => 'Commit',
+            'dedupe_key' => 'Dedupe key',
         ] as $key => $label) {
             if (filled($evidence[$key] ?? null) && is_scalar($evidence[$key])) {
                 $lines[] = $label.': '.$evidence[$key];
@@ -123,10 +155,17 @@ class Finding extends Model
             $lines[] = (string) $evidence['note'];
         }
 
+        $appendList('Tools', $evidence['tools'] ?? null);
+        $appendList('Noise reasons', $evidence['noise_reasons'] ?? null);
+        $appendList('Reachability', $evidence['reachability_reasons'] ?? null);
+
         $known = [
             'host', 'ips', 'a', 'aaaa', 'cnames', 'ns', 'url', 'status', 'matched_at',
             'template', 'type', 'plugin_id', 'confidence', 'solution', 'port', 'service',
             'product', 'version', 'records', 'preview', 'note', 'curl_command',
+            'file', 'line', 'package', 'package_version', 'rule_id', 'repository',
+            'commit_sha', 'dedupe_key', 'tools', 'noise_reasons', 'reachability_reasons',
+            'noise_filtered', 'merged_sources', 'fixed_version', 'target', 'is_laravel',
         ];
 
         foreach ($evidence as $key => $value) {
