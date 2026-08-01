@@ -9,9 +9,11 @@ use App\Enums\ScanTaskStatus;
 use App\Filament\Resources\RepoScans\Pages\ManageRepoScans;
 use App\Filament\Resources\RepoScans\Pages\ViewRepoScan;
 use App\Filament\Resources\RepoScans\RelationManagers\FindingsRelationManager;
+use App\Models\Finding;
 use App\Models\RepoScan;
 use App\Models\RepoScanTask;
 use BackedEnum;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -24,6 +26,9 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RepoScanResource extends Resource
 {
@@ -224,5 +229,58 @@ class RepoScanResource extends Resource
     public static function canCreate(): bool
     {
         return false;
+    }
+
+    public static function downloadReport(RepoScan $scan): StreamedResponse
+    {
+        $payload = static::reportPayload($scan);
+
+        $pdf = Pdf::loadView('reports.repo-scan', $payload)->setPaper('a4');
+        $filename = 'hackly-repo-scan-'.substr($scan->id, 0, 8).'.pdf';
+
+        return response()->streamDownload(
+            fn () => print ($pdf->output()),
+            $filename,
+            ['Content-Type' => 'application/pdf'],
+        );
+    }
+
+    public static function downloadMarkdownReport(RepoScan $scan): StreamedResponse
+    {
+        $payload = static::reportPayload($scan);
+        $markdown = view('reports.repo-scan-md', $payload)->render();
+        $filename = 'hackly-repo-scan-'.substr($scan->id, 0, 8).'.md';
+
+        return response()->streamDownload(
+            function () use ($markdown): void {
+                echo $markdown;
+            },
+            $filename,
+            ['Content-Type' => 'text/markdown; charset=UTF-8'],
+        );
+    }
+
+    /**
+     * @return array{scan: RepoScan, findings: Collection<int, Finding>, summary: array{high: int, medium: int, low: int}, generatedAt: Carbon}
+     */
+    public static function reportPayload(RepoScan $scan): array
+    {
+        $scan->loadMissing(['repository', 'tasks', 'findings', 'requester']);
+
+        $findings = $scan->findings
+            ->filter(fn (Finding $finding): bool => ! in_array($finding->category, ['passed', 'scan_diff'], true))
+            ->sortByDesc(fn (Finding $finding) => $finding->severity->rank())
+            ->values();
+
+        return [
+            'scan' => $scan,
+            'findings' => $findings,
+            'summary' => [
+                'high' => $findings->filter(fn (Finding $f) => $f->severity === FindingSeverity::High)->count(),
+                'medium' => $findings->filter(fn (Finding $f) => $f->severity === FindingSeverity::Medium)->count(),
+                'low' => $findings->filter(fn (Finding $f) => $f->severity === FindingSeverity::Low)->count(),
+            ],
+            'generatedAt' => now(),
+        ];
     }
 }

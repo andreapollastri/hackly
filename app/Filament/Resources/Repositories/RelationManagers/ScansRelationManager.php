@@ -7,13 +7,16 @@ use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
 use App\Filament\Resources\RepoScans\RepoScanResource;
 use App\Models\RepoScan;
+use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ScansRelationManager extends RelationManager
 {
@@ -73,6 +76,16 @@ class ScansRelationManager extends RelationManager
             ])
             ->headerActions([])
             ->recordActions([
+                Action::make('exportPdf')
+                    ->label('PDF')
+                    ->icon(Heroicon::OutlinedDocumentArrowDown)
+                    ->color('gray')
+                    ->action(fn (RepoScan $record): StreamedResponse => RepoScanResource::downloadReport($record)),
+                Action::make('exportMarkdown')
+                    ->label('MD')
+                    ->icon(Heroicon::OutlinedDocumentText)
+                    ->color('gray')
+                    ->action(fn (RepoScan $record): StreamedResponse => RepoScanResource::downloadMarkdownReport($record)),
                 ViewAction::make()
                     ->url(fn (RepoScan $record): string => RepoScanResource::getUrl('view', ['record' => $record])),
             ])
