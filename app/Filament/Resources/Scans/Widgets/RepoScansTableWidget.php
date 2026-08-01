@@ -21,6 +21,7 @@ class RepoScansTableWidget extends TableWidget
     public function table(Table $table): Table
     {
         return RepoScanResource::table($table)
+            ->query(RepoScanResource::getEloquentQuery())
             ->heading(null);
     }
 }
