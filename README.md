@@ -19,6 +19,7 @@ Built with **Laravel 13** and **Filament 5**.
 | **Scans** | Target DAST profiles `quick` / `standard` / `deep` — jobs dispatch immediately |
 | **Repo scans** | SAST / SCA / secrets / IaC + Laravel-specific checks; independent from Targets |
 | **Findings** | Normalized LOW / MEDIUM / HIGH; repo findings include reachability & noise flags |
+| **Hourly repos** | All active repositories re-scanned every hour (`quick` profile) |
 | **Nightly** | All nightly repos (+ deep linked targets) and deep scan of unlinked targets |
 | **Reports** | PDF export per target scan |
 | **Safety** | Soft rate limits, jitter, quiet hours, deep-scan cooldown, optional allowlist |
@@ -223,7 +224,9 @@ Select only the repositories you intend to scan.
 | Repo only | Scan now (toggle off) | `hackly:repo-scan owner/repo` |
 | Repo + linked targets | Scan now → Include linked targets | `hackly:repo-scan owner/repo --include-targets` |
 
-### Nightly schedule
+### Hourly + nightly schedule
+
+`hackly:hourly-repos` runs **every hour** and queues a **quick** scan for every **active** repository (repo-only; skips repos that already have a pending/running scan).
 
 `hackly:nightly` runs daily (default **02:30**, timezone from config):
 
@@ -231,8 +234,10 @@ Select only the repositories you intend to scan.
 2. Every **active verified Target with no linked repository** → **deep** scan  
 
 ```bash
+php artisan hackly:hourly-repos
 php artisan hackly:nightly
 # optional overrides:
+php artisan hackly:hourly-repos --profile=standard
 php artisan hackly:nightly --repo-profile=deep --target-profile=deep
 ```
 
@@ -249,11 +254,12 @@ Ensure the scheduler is running in production:
 | `hackly:check-binaries` | Verify scanner binaries (target + repo tools) |
 | `hackly:scan {target} --profile=standard` | Target scan; optional `--include-repos` |
 | `hackly:repo-scan {owner/repo} --profile=standard` | Repo scan; optional `--include-targets` |
+| `hackly:hourly-repos` | Hourly scan of all active repositories |
 | `hackly:nightly` | Nightly orchestration (repos + standalone targets) |
 | `hackly:cleanup-outputs` | Delete old raw scanner outputs |
 | `hackly:dispatch-due` | Re-dispatch leftover pending tasks |
 | `queue:work` | Process scan jobs |
-| `schedule:work` / cron `schedule:run` | Nightly + hourly cleanup |
+| `schedule:work` / cron `schedule:run` | Hourly repos + cleanup + nightly |
 
 ---
 

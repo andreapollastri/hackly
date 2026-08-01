@@ -263,6 +263,8 @@ return [
         // hackly:nightly uses these profiles (override via CLI flags).
         'nightly_repo_profile' => env('HACKLY_NIGHTLY_REPO_PROFILE', 'standard'),
         'nightly_target_profile' => env('HACKLY_NIGHTLY_TARGET_PROFILE', 'deep'),
+        // hackly:hourly-repos — lighter profile; repo-only (no linked targets).
+        'hourly_repo_profile' => env('HACKLY_HOURLY_REPO_PROFILE', 'quick'),
 
         'profiles' => [
             'quick' => [
