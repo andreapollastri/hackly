@@ -46,6 +46,15 @@ return [
     ],
 
     /*
+    | Extra directories searched when resolving bare binary names.
+    | PHP CLI / queue workers often lack interactive PATH entries like ~/.local/bin (pipx).
+    */
+    'binary_search_dirs' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('HACKLY_BINARY_SEARCH_DIRS', ''))
+    ))),
+
+    /*
     |--------------------------------------------------------------------------
     | Rate Limits (anti-ban)
     |--------------------------------------------------------------------------
