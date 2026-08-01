@@ -116,14 +116,25 @@ class BinaryRunner
 
         if (str_contains($binary, DIRECTORY_SEPARATOR) || str_starts_with($binary, '~')) {
             $expanded = $this->expandHome($binary);
-            $resolved = is_executable($expanded) ? $expanded : null;
 
-            return $this->resolvedCache[$binary] = $resolved;
+            if ($this->isUsableBinary($expanded)) {
+                return $this->resolvedCache[$binary] = $expanded;
+            }
+
+            // Wrong absolute path in .env (e.g. /usr/local/bin/trivy while apt put it in /usr/bin).
+            $fallback = $this->resolveBinaryByName(basename($expanded));
+
+            return $this->resolvedCache[$binary] = $fallback;
         }
 
+        return $this->resolvedCache[$binary] = $this->resolveBinaryByName($binary);
+    }
+
+    private function resolveBinaryByName(string $binary): ?string
+    {
         foreach ($this->candidatePaths($binary) as $candidate) {
-            if (is_executable($candidate)) {
-                return $this->resolvedCache[$binary] = $candidate;
+            if ($this->isUsableBinary($candidate)) {
+                return $candidate;
             }
         }
 
@@ -134,8 +145,8 @@ class BinaryRunner
 
         if ($command->successful()) {
             $found = trim($command->output());
-            if ($found !== '' && is_executable($found)) {
-                return $this->resolvedCache[$binary] = $found;
+            if ($found !== '' && $this->isUsableBinary($found)) {
+                return $found;
             }
         }
 
@@ -143,12 +154,26 @@ class BinaryRunner
 
         if ($which->successful()) {
             $found = trim($which->output());
-            if ($found !== '' && is_executable($found)) {
-                return $this->resolvedCache[$binary] = $found;
+            if ($found !== '' && $this->isUsableBinary($found)) {
+                return $found;
             }
         }
 
-        return $this->resolvedCache[$binary] = null;
+        return null;
+    }
+
+    private function isUsableBinary(string $path): bool
+    {
+        if ($path === '' || is_dir($path)) {
+            return false;
+        }
+
+        // Broken symlink
+        if (is_link($path) && ! file_exists($path)) {
+            return false;
+        }
+
+        return is_file($path) && is_executable($path);
     }
 
     /**
@@ -184,7 +209,24 @@ class BinaryRunner
             ? basename($binary)
             : $binary;
 
+        if (str_contains($binary, DIRECTORY_SEPARATOR) || str_starts_with($binary, '~')) {
+            $expanded = $this->expandHome($binary);
+
+            if (is_link($expanded) && ! file_exists($expanded)) {
+                return "broken symlink at {$expanded} — remove it and reinstall, or set HACKLY_".strtoupper($name).' to the real path (try: command -v '.$name.')';
+            }
+
+            if (! file_exists($expanded)) {
+                return "{$expanded} does not exist — run: command -v {$name}  (apt often installs trivy in /usr/bin/trivy)";
+            }
+
+            if (! is_executable($expanded)) {
+                return "{$expanded} exists but is not executable by this PHP user — chmod a+rx or fix ownership";
+            }
+        }
+
         $shadows = [
+            '/usr/bin/'.$name,
             '/usr/local/bin/'.$name,
             '/root/.local/bin/'.$name,
             (getenv('HOME') ?: '').'/.local/bin/'.$name,
@@ -202,12 +244,16 @@ class BinaryRunner
             $target = is_link($shadow) ? (readlink($shadow) ?: $shadow) : $shadow;
             $real = realpath($shadow) ?: $target;
 
-            if (str_starts_with($real, '/root/') || str_starts_with((string) $target, '/root/')) {
+            if (str_starts_with((string) $real, '/root/') || str_starts_with((string) $target, '/root/')) {
                 return "found {$shadow} but it lives under /root (not runnable by this PHP user). Re-run: sudo bash scripts/install-repo-scanners.sh";
             }
 
+            if ($this->isUsableBinary($shadow)) {
+                return "usable at {$shadow} — set HACKLY_".strtoupper($name)."={$shadow} or remove the wrong absolute path from .env";
+            }
+
             if (! is_executable($shadow)) {
-                return "found {$shadow} but not executable by user ".get_current_user().' (uid '.getmyuid().')';
+                return "found {$shadow} but not executable by this PHP user";
             }
         }
 

@@ -79,8 +79,22 @@ install_pipx_tool() {
 
 install_trivy() {
   echo "==> Installing Trivy"
-  if [[ -x /usr/bin/trivy || -x /usr/local/bin/trivy ]]; then
-    echo "    trivy already present"
+
+  # Remove broken /usr/local/bin/trivy leftovers (common when a bad symlink was created).
+  if [[ -L /usr/local/bin/trivy && ! -e /usr/local/bin/trivy ]]; then
+    echo "    removing broken symlink /usr/local/bin/trivy"
+    rm -f /usr/local/bin/trivy
+  fi
+
+  if command -v trivy >/dev/null 2>&1; then
+    local resolved
+    resolved="$(command -v trivy)"
+    echo "    trivy already present: ${resolved}"
+    # Ensure a stable path for .env defaults / PHP discovery
+    if [[ "${resolved}" != /usr/local/bin/trivy && -x "${resolved}" ]]; then
+      ln -sfn "${resolved}" /usr/local/bin/trivy
+      echo "    linked ${resolved} → /usr/local/bin/trivy"
+    fi
     return
   fi
 
@@ -100,6 +114,11 @@ install_trivy() {
     apt-get install -y "${TMP}/trivy.deb"
     rm -rf "${TMP}"
   }
+
+  if [[ -x /usr/bin/trivy && ! -e /usr/local/bin/trivy ]]; then
+    ln -sfn /usr/bin/trivy /usr/local/bin/trivy
+    echo "    linked /usr/bin/trivy → /usr/local/bin/trivy"
+  fi
 }
 
 install_gitleaks() {
