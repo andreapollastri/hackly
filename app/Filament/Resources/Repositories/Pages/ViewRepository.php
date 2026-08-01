@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Repositories\Pages;
 use App\Domain\RepoScanning\Services\RepoScanDispatcher;
 use App\Enums\ScanProfile;
 use App\Enums\ScanTaskStatus;
+use App\Filament\Resources\RepoScans\RepoScanResource;
 use App\Filament\Resources\Repositories\RepositoryResource;
 use App\Models\Repository;
 use Filament\Actions\Action;
@@ -67,6 +68,8 @@ class ViewRepository extends ViewRecord
                                 : "{$queued} task(s) will run after clone.")
                             ->success()
                             ->send();
+
+                        $this->redirect(RepoScanResource::getUrl('view', ['record' => $scan]));
                     } catch (\Throwable $e) {
                         Notification::make()
                             ->title('Cannot start repo scan')

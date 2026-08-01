@@ -2,14 +2,17 @@
 
 namespace App\Filament\Resources\Repositories\RelationManagers;
 
+use App\Enums\FindingSeverity;
+use App\Enums\ScanProfile;
 use App\Enums\ScanStatus;
+use App\Filament\Resources\RepoScans\RepoScanResource;
 use App\Models\RepoScan;
 use Filament\Actions\ViewAction;
-use Filament\Infolists\Components\RepeatableEntry;
-use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class ScansRelationManager extends RelationManager
@@ -18,46 +21,66 @@ class ScansRelationManager extends RelationManager
 
     protected static ?string $title = 'Repo scans';
 
-    public function infolist(Schema $schema): Schema
+    public function form(Schema $schema): Schema
     {
-        return $schema->components([
-            TextEntry::make('id')->label('Scan')->copyable(),
-            TextEntry::make('profile')->badge(),
-            TextEntry::make('status')->badge(),
-            TextEntry::make('commit_sha')->placeholder('—'),
-            TextEntry::make('progress')
-                ->state(fn (RepoScan $record) => $record->progressPercent().'% ('.$record->finishedTasksCount().'/'.$record->totalTasksCount().')'),
-            TextEntry::make('error_message')->placeholder('—')->columnSpanFull(),
-            RepeatableEntry::make('tasks')
-                ->schema([
-                    TextEntry::make('type')->badge(),
-                    TextEntry::make('status')->badge(),
-                    TextEntry::make('error_message')->placeholder('—'),
-                ])
-                ->columns(3),
-        ]);
+        return $schema->components([]);
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->defaultSort('created_at', 'desc')
+            ->poll('3s')
+            ->modifyQueryUsing(fn ($query) => $query
+                ->with(['tasks'])
+                ->withCount([
+                    'findings as high_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::High)->whereNotIn('category', ['passed', 'scan_diff']),
+                    'findings as medium_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Medium)->whereNotIn('category', ['passed', 'scan_diff']),
+                    'findings as low_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Low)->whereNotIn('category', ['passed', 'scan_diff']),
+                ]))
+            ->recordUrl(fn (RepoScan $record): string => RepoScanResource::getUrl('view', ['record' => $record]))
             ->columns([
-                TextColumn::make('id')->label('Scan')->limit(8),
-                TextColumn::make('profile')->badge(),
-                TextColumn::make('status')->badge()
+                TextColumn::make('id')
+                    ->label('UUID')
+                    ->copyable()
+                    ->limit(8)
+                    ->tooltip(fn (RepoScan $record) => $record->id)
+                    ->searchable(),
+                TextColumn::make('profile')
+                    ->badge()
+                    ->color('info'),
+                TextColumn::make('status')
+                    ->badge()
                     ->color(fn (ScanStatus $state): string => match ($state) {
                         ScanStatus::Completed => 'success',
                         ScanStatus::Running => 'warning',
                         ScanStatus::Failed => 'danger',
+                        ScanStatus::Cancelled => 'gray',
                         default => 'gray',
                     }),
-                TextColumn::make('progress')
-                    ->state(fn (RepoScan $record) => $record->progressPercent().'%'),
-                TextColumn::make('created_at')->since(),
+                ViewColumn::make('progress')
+                    ->label('Progress')
+                    ->view('filament.tables.columns.scan-progress'),
+                ViewColumn::make('findings_summary')
+                    ->label('Findings')
+                    ->view('filament.tables.columns.scan-findings-summary')
+                    ->state(fn (RepoScan $record) => $record->findingsSeveritySummary()),
+                TextColumn::make('created_at')->since()->sortable()->label('Started'),
             ])
+            ->filters([
+                SelectFilter::make('profile')->options(collect(ScanProfile::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
+                SelectFilter::make('status')->options(collect(ScanStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
+            ])
+            ->headerActions([])
             ->recordActions([
-                ViewAction::make(),
-            ]);
+                ViewAction::make()
+                    ->url(fn (RepoScan $record): string => RepoScanResource::getUrl('view', ['record' => $record])),
+            ])
+            ->toolbarActions([]);
+    }
+
+    public function isReadOnly(): bool
+    {
+        return true;
     }
 }

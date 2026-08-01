@@ -6,6 +6,7 @@ use App\Domain\RepoScanning\Services\GithubClient;
 use App\Domain\RepoScanning\Services\RepoScanDispatcher;
 use App\Enums\ScanProfile;
 use App\Enums\ScanTaskStatus;
+use App\Filament\Resources\RepoScans\RepoScanResource;
 use App\Filament\Resources\Repositories\Pages\EditRepository;
 use App\Filament\Resources\Repositories\Pages\ListRepositories;
 use App\Filament\Resources\Repositories\Pages\ViewRepository;
@@ -157,6 +158,8 @@ class RepositoryResource extends Resource
                                     : "Clone queued, then {$queued} scanner task(s).")
                                 ->success()
                                 ->send();
+
+                            return redirect(RepoScanResource::getUrl('view', ['record' => $scan]));
                         } catch (\Throwable $e) {
                             Notification::make()
                                 ->title('Cannot start repo scan')

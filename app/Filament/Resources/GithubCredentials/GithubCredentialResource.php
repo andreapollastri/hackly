@@ -73,6 +73,7 @@ class GithubCredentialResource extends Resource
                 Action::make('validate')
                     ->label('Validate')
                     ->icon(Heroicon::OutlinedShieldCheck)
+                    ->visible(fn (GithubCredential $record): bool => $record->validation_status !== 'valid')
                     ->action(function (GithubCredential $record) {
                         try {
                             $info = app(GithubClient::class)->validateToken($record);

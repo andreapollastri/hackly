@@ -1,13 +1,12 @@
 @php
     use App\Enums\ScanTaskStatus;
-    use App\Models\ScanTask;
 
     $scan = $getRecord();
     $tasks = $scan->relationLoaded('tasks')
         ? $scan->tasks->sortBy('sort_order')->values()
         : $scan->tasks()->orderBy('sort_order')->get();
 
-    $dotKey = $tasks->map(fn (ScanTask $task) => $task->status->value)->implode('-');
+    $dotKey = $tasks->map(fn ($task) => $task->status->value)->implode('-');
 
     $styles = [
         'idle' => 'width:10px;height:10px;border-radius:9999px;box-sizing:border-box;border:2px solid #94a3b8;background:transparent;',
@@ -20,7 +19,7 @@
 <div
     style="display:flex;align-items:center;gap:6px;"
     wire:key="scan-progress-{{ $scan->id }}-{{ $dotKey }}"
-    title="{{ $tasks->map(fn (ScanTask $task) => $task->type->value.': '.$task->status->value)->implode(' · ') }}"
+    title="{{ $tasks->map(fn ($task) => ($task->type->value ?? 'task').': '.$task->status->value)->implode(' · ') }}"
 >
     @forelse ($tasks as $task)
         @php
@@ -30,10 +29,13 @@
                 ScanTaskStatus::Running => 'running',
                 default => 'idle',
             };
+            $typeLabel = method_exists($task->type, 'label')
+                ? $task->type->label()
+                : ($task->type->value ?? 'task');
         @endphp
         <span
             style="display:inline-block;{{ $styles[$tone] }}"
-            title="{{ $task->type->value }} · {{ $task->status->value }}"
+            title="{{ $typeLabel }} · {{ $task->status->value }}"
         ></span>
     @empty
         <span style="font-size:12px;color:#94a3b8;">—</span>
