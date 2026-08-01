@@ -2,7 +2,9 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Resources\GithubCredentials\GithubCredentialResource;
 use App\Filament\Widgets\HacklyStatsOverview;
+use Filament\Actions\Action;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Auth\MultiFactor\Email\EmailAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -13,6 +15,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -41,6 +44,13 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Hackly')
             ->favicon(asset('favicon.svg'))
             ->topNavigation()
+            ->userMenuItems([
+                Action::make('githubTokens')
+                    ->label('GitHub tokens')
+                    ->icon(Heroicon::OutlinedKey)
+                    ->url(fn (): string => GithubCredentialResource::getUrl('index'))
+                    ->sort(10),
+            ])
             ->colors([
                 'primary' => Color::Emerald,
                 'danger' => Color::Rose,

@@ -9,6 +9,7 @@ use App\Filament\Resources\Assets\AssetResource;
 use App\Filament\Resources\Scans\ScanResource;
 use App\Models\Asset;
 use App\Models\Finding;
+use App\Models\RepoScan;
 use App\Models\Scan;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
@@ -22,10 +23,13 @@ class HacklyStatsOverview extends StatsOverviewWidget
     {
         $totalTargets = Asset::query()->count();
         $unverifiedTargets = Asset::query()->whereNull('verified_at')->count();
-        $totalScans = Scan::query()->count();
+        $totalScans = Scan::query()->count() + RepoScan::query()->count();
         $runningScans = Scan::query()
             ->whereIn('status', [ScanStatus::Pending, ScanStatus::Running])
-            ->count();
+            ->count()
+            + RepoScan::query()
+                ->whereIn('status', [ScanStatus::Pending, ScanStatus::Running])
+                ->count();
         $openHighFindings = Finding::query()
             ->where('status', FindingStatus::Open)
             ->where('severity', FindingSeverity::High)

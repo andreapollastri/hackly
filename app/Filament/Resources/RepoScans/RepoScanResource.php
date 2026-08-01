@@ -39,7 +39,7 @@ class RepoScanResource extends Resource
 
     protected static ?string $slug = 'repo-scans';
 
-    protected static ?int $navigationSort = 5;
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Schema $schema): Schema
     {

@@ -31,7 +31,7 @@ class GithubCredentialResource extends Resource
 
     protected static ?string $slug = 'github-tokens';
 
-    protected static ?int $navigationSort = 3;
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Schema $schema): Schema
     {
