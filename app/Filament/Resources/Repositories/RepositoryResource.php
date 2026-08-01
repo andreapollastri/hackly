@@ -196,8 +196,11 @@ class RepositoryResource extends Resource
     {
         $fullName = trim((string) ($data['full_name'] ?? ''));
         $fullName = str_replace('https://github.com/', '', $fullName);
-        $fullName = rtrim($fullName, '.git');
         $fullName = trim($fullName, '/');
+
+        if (str_ends_with(strtolower($fullName), '.git')) {
+            $fullName = substr($fullName, 0, -4);
+        }
 
         if (! str_contains($fullName, '/')) {
             throw new \InvalidArgumentException('Repository must be in owner/name format.');
