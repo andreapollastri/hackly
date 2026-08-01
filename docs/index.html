@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hackly — Authorized attack-surface &amp; application security scanning</title>
-  <meta name="description" content="Inventory targets you own, verify DNS ownership, run soft rate-limited scans, and review findings from a Filament admin panel. Built with Laravel 13 and Filament 5." />
+  <meta name="description" content="Inventory targets you own, verify DNS ownership, scan linked GitHub repositories (Laravel/PHP SAST/SCA), and review findings from a Filament admin panel. Built with Laravel 13 and Filament 5." />
   <meta property="og:title" content="Hackly — Authorized attack-surface scanning" />
-  <meta property="og:description" content="Verify ownership, scan with soft rate limits, review findings, export PDFs. Laravel + Filament." />
+  <meta property="og:description" content="Verify ownership, scan targets and GitHub repos, review findings, export PDFs. Laravel + Filament." />
   <meta property="og:type" content="website" />
   <meta name="theme-color" content="#7c3aed" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -789,8 +789,9 @@
       <div class="hero-brand" aria-label="Hackly">Hack<span class="mark">ly</span></div>
       <h1>Authorized attack-surface<br>scanning — with ownership gates.</h1>
       <p>
-        Inventory targets you own, verify DNS ownership, run soft rate-limited scans,
-        and review findings from a Filament admin panel. Built with Laravel&nbsp;13 and Filament&nbsp;5.
+        Inventory targets you own, verify DNS ownership, scan linked GitHub repositories
+        (Laravel/PHP-focused SAST &amp; SCA), and review findings from a Filament admin panel.
+        Built with Laravel&nbsp;13 and Filament&nbsp;5.
       </p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="#install">Get started</a>
@@ -798,8 +799,8 @@
         <a class="btn btn-secondary" href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">View on GitHub</a>
       </div>
       <p class="legal-note">
-        <strong>Legal notice</strong> — Only scan targets you are authorized to assess.
-        Unauthorized scanning may be illegal. DNS ownership verification is required before a scan can start.
+        <strong>Legal notice</strong> — Only scan targets and repositories you are authorized to assess.
+        Unauthorized scanning may be illegal. DNS ownership verification is required before a <em>target</em> scan can start.
       </p>
     </div>
 
@@ -828,12 +829,13 @@
   <section id="coverage">
     <div class="section-inner">
       <p class="section-kicker">Coverage</p>
-      <h2 class="section-title">Scanners that respect<br>your rate limits.</h2>
+      <h2 class="section-title">Targets and repos.<br>Same control plane.</h2>
       <p class="section-lead">
-        Profiles map to task sets. Soft jitter, spacing, quiet hours, and deep-scan cooldown
-        keep noise — and ban risk — down.
+        DAST for verified targets, SAST/SCA for GitHub clones — with soft rate limits on live probes
+        and Aikido-style post-processing on repo findings.
       </p>
 
+      <p class="section-kicker" style="margin-top:0.5rem">Target scanners</p>
       <div class="coverage-list">
         <div class="coverage-row">
           <span class="n">01</span>
@@ -878,6 +880,55 @@
           <span class="tag">deep</span>
         </div>
       </div>
+
+      <p class="section-kicker" style="margin-top:2.75rem">Repository scanners</p>
+      <p class="section-lead" style="margin-bottom:1.25rem">
+        Clone via PAT → run profile tasks → dedupe, PHP reachability, and noise filters.
+      </p>
+      <div class="coverage-list">
+        <div class="coverage-row">
+          <span class="n">01</span>
+          <span class="name">Semgrep SAST</span>
+          <span class="desc">PHP ruleset (<code>p/php</code>) on the shallow clone.</span>
+          <span class="tag">standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">02</span>
+          <span class="name">Trivy SCA</span>
+          <span class="desc">Dependency vulnerabilities from lockfiles and images.</span>
+          <span class="tag">standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">03</span>
+          <span class="name">Gitleaks</span>
+          <span class="desc">Secret detection across the repository history snapshot.</span>
+          <span class="tag">quick · standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">04</span>
+          <span class="name">Checkov IaC</span>
+          <span class="desc">Docker / Terraform / GitHub Actions — skipped when none present.</span>
+          <span class="tag">deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">05</span>
+          <span class="name">Composer + OSV</span>
+          <span class="desc"><code>composer audit</code> and OSV CVE lookup when <code>composer.lock</code> exists.</span>
+          <span class="tag">quick · standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">06</span>
+          <span class="name">Laravel PHP audit</span>
+          <span class="desc">Committed <code>.env</code>, debug packages, Telescope/Horizon hints, mass-assignment risks.</span>
+          <span class="tag">quick · standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">07</span>
+          <span class="name">Laravel live pentest</span>
+          <span class="desc">HTTP probes on <strong>linked</strong> Targets when “Include linked targets” (or nightly).</span>
+          <span class="tag">standard · deep</span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -915,7 +966,8 @@ php artisan migrate --seed">Copy</button>
 
 <span class="tok-cmt"># or separately:</span>
 <span class="tok-cmd">php artisan serve</span>
-<span class="tok-cmd">php artisan queue:work</span>  <span class="tok-cmt"># required</span></pre>
+<span class="tok-cmd">php artisan queue:work</span>  <span class="tok-cmt"># required</span>
+<span class="tok-cmd">php artisan schedule:work</span>  <span class="tok-cmt"># nightly + cleanup</span></pre>
         </div>
       </div>
 
@@ -930,15 +982,15 @@ php artisan migrate --seed">Copy</button>
         <div class="step">
           <span class="n">02</span>
           <div>
-            <h3>Add &amp; verify a target</h3>
-            <p>Create a domain or IP, publish the DNS TXT token, then verify ownership before scanning.</p>
+            <h3>Add a target or a repo</h3>
+            <p>Verify a domain via DNS TXT — and/or add a GitHub PAT, then register <code>owner/repo</code>.</p>
           </div>
         </div>
         <div class="step">
           <span class="n">03</span>
           <div>
-            <h3>Start a scan</h3>
-            <p>Pick <code>quick</code>, <code>standard</code>, or <code>deep</code>. Jobs dispatch immediately; findings sort HIGH → LOW.</p>
+            <h3>Scan independently</h3>
+            <p>Target DAST, repo SAST/SCA, or both via linked Targets ↔ Repositories. Findings sort HIGH → LOW.</p>
           </div>
         </div>
       </div>
@@ -953,8 +1005,11 @@ php artisan migrate --seed">Copy</button>
           <li><a href="#doc-overview">Overview</a></li>
           <li><a href="#doc-requirements">Requirements</a></li>
           <li><a href="#doc-binaries">Scanner binaries</a></li>
-          <li><a href="#doc-usage">Usage</a></li>
+          <li><a href="#doc-usage">Targets</a></li>
+          <li><a href="#doc-repos">Repositories</a></li>
+          <li><a href="#doc-modes">Scan modes</a></li>
           <li><a href="#doc-profiles">Scan profiles</a></li>
+          <li><a href="#doc-nightly">Nightly</a></li>
           <li><a href="#doc-commands">Commands</a></li>
           <li><a href="#doc-configuration">Configuration</a></li>
           <li><a href="#doc-security">Security model</a></li>
@@ -967,7 +1022,7 @@ php artisan migrate --seed">Copy</button>
           <p class="section-kicker">Documentation</p>
           <h2 class="section-title">Reference</h2>
           <p class="section-lead" style="margin-bottom:0">
-            Architecture, profiles, CLI, env knobs, and the ownership-first security model.
+            Dual-path architecture (targets + repos), profiles, CLI, env knobs, and the ownership-first security model.
           </p>
         </header>
 
@@ -975,18 +1030,24 @@ php artisan migrate --seed">Copy</button>
           <h3>Overview</h3>
           <p>
             Hackly is an orchestration layer for <strong>authorized</strong> attack-surface and
-            application security scanning. You inventory targets, prove ownership, run soft
-            rate-limited scanner jobs, and review normalized findings in Filament.
+            application security scanning. You inventory targets, prove ownership, scan GitHub
+            repositories via PAT, run soft rate-limited jobs, and review normalized findings in Filament.
           </p>
           <div class="code-block">
             <div class="code-header"><span>Architecture</span></div>
-            <pre>Target (verified)
-   └─ Scan
-        └─ ScanTasks  →  RunScanTaskJob  →  Findings</pre>
+            <pre>Target (verified)                    Repository (GitHub PAT)
+   │                                      │
+   ├─ optional link ──────────────────────┤
+   │                                      │
+   ├─ Scan (DAST)                         ├─ RepoScan
+   │    └─ ScanTasks → Findings           │    └─ RepoScanTasks → Findings
+   │                                      │         (asset_id nullable)
+   └─ optional: include linked repos      └─ optional: include linked targets</pre>
           </div>
           <p style="margin-top:1rem">
             Jobs use the <strong>database queue</strong> (no Horizon). A queue worker must be
-            running for scans to execute.
+            running for scans to execute. Linking Targets ↔ Repositories is optional — each side
+            can scan on its own.
           </p>
         </article>
 
@@ -996,6 +1057,7 @@ php artisan migrate --seed">Copy</button>
             <li>PHP <strong>8.3+</strong></li>
             <li>Composer</li>
             <li>SQLite <em>(default)</em> or MySQL / PostgreSQL</li>
+            <li><code>git</code> <em>(for repository clones)</em></li>
             <li>Node.js <em>(optional — Vite assets; Filament ships published assets)</em></li>
           </ul>
           <div class="callout">
@@ -1005,6 +1067,7 @@ php artisan migrate --seed">Copy</button>
 
         <article class="doc-block" id="doc-binaries">
           <h3>Scanner binaries</h3>
+          <h4>Target scanners</h4>
           <p>
             Optional but recommended. Without them, related tasks fail gracefully and surface
             missing-binary errors in the scan UI.
@@ -1037,41 +1100,195 @@ php artisan migrate --seed">Copy</button>
               </tbody>
             </table>
           </div>
-          <h4>Ubuntu 24.04 / 26.04+</h4>
           <div class="code-block">
             <div class="code-header">
-              <span>Install helpers</span>
+              <span>Ubuntu — target tools</span>
               <button class="copy-btn" type="button" data-copy="sudo bash scripts/install-scanner-binaries-ubuntu.sh
 php artisan hackly:check-binaries">Copy</button>
             </div>
             <pre><span class="tok-cmd">sudo bash</span> <span class="tok-arg">scripts/install-scanner-binaries-ubuntu.sh</span>
 <span class="tok-cmd">php artisan hackly:check-binaries</span></pre>
           </div>
+
+          <h4 style="margin-top:1.75rem">Repository scanners</h4>
+          <p>
+            Needed for GitHub repo scanning. Missing tools cause those tasks to be
+            <strong>skipped</strong> (other tasks still run). Composer/OSV and Hackly Laravel
+            auditors do not require Semgrep/Trivy.
+          </p>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Binary</th>
+                  <th>Used for</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">semgrep</td>
+                  <td>PHP SAST</td>
+                </tr>
+                <tr>
+                  <td class="mono">trivy</td>
+                  <td>SCA</td>
+                </tr>
+                <tr>
+                  <td class="mono">gitleaks</td>
+                  <td>Secrets</td>
+                </tr>
+                <tr>
+                  <td class="mono">checkov</td>
+                  <td>IaC</td>
+                </tr>
+                <tr>
+                  <td class="mono">composer</td>
+                  <td><code>composer audit</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span>Ubuntu — repo tools</span>
+              <button class="copy-btn" type="button" data-copy="sudo bash scripts/install-repo-scanners.sh
+php artisan hackly:check-binaries">Copy</button>
+            </div>
+            <pre><span class="tok-cmd">sudo bash</span> <span class="tok-arg">scripts/install-repo-scanners.sh</span>
+<span class="tok-cmd">php artisan hackly:check-binaries</span></pre>
+          </div>
+          <div class="callout">
+            Run <code>hackly:check-binaries</code> as the <strong>queue worker user</strong>
+            (e.g. <code>www-data</code>). The install script puts tools on <code>/usr/local/bin</code>
+            so they are not trapped in a root-only <code>~/.local</code>.
+          </div>
         </article>
 
         <article class="doc-block" id="doc-usage">
-          <h3>Usage</h3>
-          <h4>From the admin UI</h4>
+          <h3>Targets</h3>
+          <h4>Admin UI</h4>
           <ol>
             <li>Open <strong>Targets</strong> → create a domain or IP</li>
             <li>Copy the <strong>DNS token</strong> → publish the TXT record at your DNS provider</li>
-            <li><strong>Verify DNS</strong> — must succeed before scanning</li>
-            <li><strong>Start scan</strong> — pick a profile; jobs dispatch immediately</li>
+            <li><strong>Verify DNS</strong> — must succeed before target scanning</li>
+            <li><strong>Start scan</strong> — pick a profile; optionally enable <strong>Include linked repositories</strong></li>
             <li>Watch <strong>Scans</strong> for live progress, open findings (HIGH → LOW), export the <strong>PDF</strong></li>
-            <li>On a target’s detail page, browse the related <strong>Scans</strong> table</li>
+            <li>On a target’s detail page: <strong>Linked repositories</strong> + <strong>Scans</strong></li>
           </ol>
-          <h4>From the CLI</h4>
+          <p style="margin-top:1rem">Targets do <strong>not</strong> need a linked repository.</p>
+          <h4>CLI</h4>
           <div class="code-block">
             <div class="code-header">
               <span>Terminal</span>
-              <button class="copy-btn" type="button" data-copy="php artisan hackly:scan example.com --profile=standard">Copy</button>
+              <button class="copy-btn" type="button" data-copy="php artisan hackly:scan example.com --profile=standard
+php artisan hackly:scan example.com --include-repos">Copy</button>
             </div>
-            <pre><span class="tok-cmd">php artisan hackly:scan</span> <span class="tok-arg">example.com</span> <span class="tok-flag">--profile=standard</span></pre>
+            <pre><span class="tok-cmd">php artisan hackly:scan</span> <span class="tok-arg">example.com</span> <span class="tok-flag">--profile=standard</span>
+<span class="tok-cmd">php artisan hackly:scan</span> <span class="tok-arg">example.com</span> <span class="tok-flag">--include-repos</span></pre>
           </div>
+        </article>
+
+        <article class="doc-block" id="doc-repos">
+          <h3>Repositories</h3>
+          <h4>Admin UI</h4>
+          <ol>
+            <li>Open <strong>GitHub tokens</strong> → add a PAT → <strong>Validate</strong></li>
+            <li>Open <strong>Repositories</strong> → add <code>owner/repo</code> (checked against the GitHub API)</li>
+            <li>Optionally link one or more <strong>Targets</strong></li>
+            <li><strong>Scan now</strong> — pick a repo profile; optionally <strong>Include linked targets</strong> (queues deep DAST on each verified linked Target)</li>
+            <li>Review <strong>Repo scans</strong> and <strong>Findings</strong> on the repository page</li>
+          </ol>
+          <p style="margin-top:1rem">
+            Repo findings are stored on the repository (<code>asset_id</code> may be null).
+            PDF export is for <strong>target</strong> scans only.
+          </p>
+
+          <h4>GitHub token permissions</h4>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Permission</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="strong">Classic PAT</td>
+                  <td><code>repo</code> (private) or <code>public_repo</code> (public only)</td>
+                </tr>
+                <tr>
+                  <td class="strong">Fine-grained</td>
+                  <td><strong>Contents: Read</strong> + <strong>Metadata: Read</strong> on selected repos</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Post-processing</h4>
+          <ul>
+            <li>Cross-tool <strong>deduplication</strong> (e.g. same package + CVE from Trivy and OSV → one finding)</li>
+            <li><strong>PHP reachability</strong>: namespace usage in <code>app/</code>, <code>routes/</code>, <code>config/</code>; <code>require-dev</code> → unreachable; Laravel package auto-discovery</li>
+            <li><strong>Noise filters</strong>: placeholder secrets, path out of app scope, configurable rule suppressions</li>
+            <li>Findings store <code>reachability</code>, <code>confidence</code>, <code>noise_filtered</code>, and <code>tools[]</code></li>
+          </ul>
+
+          <h4>CLI</h4>
+          <div class="code-block">
+            <div class="code-header">
+              <span>Terminal</span>
+              <button class="copy-btn" type="button" data-copy="php artisan hackly:repo-scan owner/repo --profile=standard
+php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
+            </div>
+            <pre><span class="tok-cmd">php artisan hackly:repo-scan</span> <span class="tok-arg">owner/repo</span> <span class="tok-flag">--profile=standard</span>
+<span class="tok-cmd">php artisan hackly:repo-scan</span> <span class="tok-arg">owner/repo</span> <span class="tok-flag">--include-targets</span></pre>
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-modes">
+          <h3>Independent scan modes</h3>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Goal</th>
+                  <th>UI</th>
+                  <th>CLI</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="strong">Target only</td>
+                  <td>Start scan (toggle off)</td>
+                  <td class="mono">hackly:scan example.com</td>
+                </tr>
+                <tr>
+                  <td class="strong">Target + repos</td>
+                  <td>Include linked repositories</td>
+                  <td class="mono">hackly:scan … --include-repos</td>
+                </tr>
+                <tr>
+                  <td class="strong">Repo only</td>
+                  <td>Scan now (toggle off)</td>
+                  <td class="mono">hackly:repo-scan owner/repo</td>
+                </tr>
+                <tr>
+                  <td class="strong">Repo + targets</td>
+                  <td>Include linked targets</td>
+                  <td class="mono">hackly:repo-scan … --include-targets</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:1rem">
+            Laravel live pentest runs only when the repo scan includes linked targets (or via nightly).
+            Repo-only scans skip it.
+          </p>
         </article>
 
         <article class="doc-block" id="doc-profiles">
           <h3>Scan profiles</h3>
+          <h4>Target (DAST)</h4>
           <div class="table-wrap">
             <table class="docs-table">
               <thead>
@@ -1096,9 +1313,66 @@ php artisan hackly:check-binaries">Copy</button>
               </tbody>
             </table>
           </div>
+
+          <h4 style="margin-top:1.75rem">Repository (SAST / SCA)</h4>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Profile</th>
+                  <th>Tasks</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="strong">quick</td>
+                  <td><code>gitleaks_secrets</code>, <code>composer_osv</code>, <code>laravel_php_audit</code></td>
+                </tr>
+                <tr>
+                  <td class="strong">standard</td>
+                  <td>+ <code>semgrep_sast</code>, <code>trivy_sca</code>, <code>laravel_live_pentest</code>*</td>
+                </tr>
+                <tr>
+                  <td class="strong">deep</td>
+                  <td>+ <code>checkov_iac</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <p style="margin-top:1rem">
-            Findings are normalized to <strong>LOW / MEDIUM / HIGH</strong> and ordered by severity.
+            * Live pentest only when linked targets are included. Findings are normalized to
+            <strong>LOW / MEDIUM / HIGH</strong>.
           </p>
+        </article>
+
+        <article class="doc-block" id="doc-nightly">
+          <h3>Nightly schedule</h3>
+          <p>
+            <code>hackly:nightly</code> runs daily (default <strong>02:30</strong>, timezone from config):
+          </p>
+          <ol>
+            <li>Every <strong>active</strong> repository with <strong>Nightly</strong> enabled → repo scan + <strong>deep</strong> scan of linked verified Targets</li>
+            <li>Every <strong>active verified Target with no linked repository</strong> → <strong>deep</strong> scan</li>
+          </ol>
+          <div class="code-block">
+            <div class="code-header">
+              <span>Terminal</span>
+              <button class="copy-btn" type="button" data-copy="php artisan hackly:nightly
+php artisan hackly:nightly --repo-profile=deep --target-profile=deep">Copy</button>
+            </div>
+            <pre><span class="tok-cmd">php artisan hackly:nightly</span>
+<span class="tok-cmd">php artisan hackly:nightly</span> <span class="tok-flag">--repo-profile=deep</span> <span class="tok-flag">--target-profile=deep</span></pre>
+          </div>
+          <p style="margin-top:1rem">
+            Nightly ignores the deep-scan cooldown. Ensure the scheduler is running in production:
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span>crontab</span>
+              <button class="copy-btn" type="button" data-copy="* * * * * cd /path/to/hackly && php artisan schedule:run >> /dev/null 2>&1">Copy</button>
+            </div>
+            <pre>* * * * * cd /path/to/hackly &amp;&amp; php artisan schedule:run &gt;&gt; /dev/null 2&gt;&amp;1</pre>
+          </div>
         </article>
 
         <article class="doc-block" id="doc-commands">
@@ -1114,11 +1388,19 @@ php artisan hackly:check-binaries">Copy</button>
               <tbody>
                 <tr>
                   <td class="mono">hackly:check-binaries</td>
-                  <td>Verify scanner binaries</td>
+                  <td>Verify target + repo scanner binaries</td>
                 </tr>
                 <tr>
                   <td class="mono">hackly:scan {target}</td>
-                  <td>Create scan &amp; dispatch jobs (<code>--profile=</code>)</td>
+                  <td>Target scan (<code>--profile=</code>, <code>--include-repos</code>)</td>
+                </tr>
+                <tr>
+                  <td class="mono">hackly:repo-scan {repo}</td>
+                  <td>Repo scan (<code>--profile=</code>, <code>--include-targets</code>)</td>
+                </tr>
+                <tr>
+                  <td class="mono">hackly:nightly</td>
+                  <td>Nightly orchestration (repos + standalone targets)</td>
                 </tr>
                 <tr>
                   <td class="mono">hackly:cleanup-outputs</td>
@@ -1131,6 +1413,10 @@ php artisan hackly:check-binaries">Copy</button>
                 <tr>
                   <td class="mono">queue:work</td>
                   <td>Process scan jobs</td>
+                </tr>
+                <tr>
+                  <td class="mono">schedule:work</td>
+                  <td>Nightly + hourly cleanup (or cron <code>schedule:run</code>)</td>
                 </tr>
               </tbody>
             </table>
@@ -1164,7 +1450,18 @@ DB_QUEUE_RETRY_AFTER=1020
 
 HACKLY_NMAP=nmap
 HACKLY_NUCLEI=nuclei
-HACKLY_ZAP=zap.sh">Copy</button>
+HACKLY_ZAP=zap.sh
+
+HACKLY_GIT=git
+HACKLY_COMPOSER=composer
+HACKLY_SEMGREP=semgrep
+HACKLY_TRIVY=trivy
+HACKLY_GITLEAKS=gitleaks
+HACKLY_CHECKOV=checkov
+HACKLY_REPO_NIGHTLY_AT=02:30
+HACKLY_REPO_NIGHTLY_TZ=UTC
+HACKLY_NIGHTLY_REPO_PROFILE=standard
+HACKLY_NIGHTLY_TARGET_PROFILE=deep">Copy</button>
             </div>
             <pre>QUEUE_CONNECTION=database
 CACHE_STORE=database
@@ -1186,26 +1483,47 @@ HACKLY_QUIET_HOURS_ENABLED=false
 HACKLY_JOB_TIMEOUT=960
 DB_QUEUE_RETRY_AFTER=1020
 
-<span class="tok-cmt"># Binary paths</span>
+<span class="tok-cmt"># Target binary paths</span>
 HACKLY_NMAP=nmap
 HACKLY_NUCLEI=nuclei
 <span class="tok-cmt"># macOS: HACKLY_ZAP=/Applications/ZAP.app/Contents/Java/zap.sh</span>
-HACKLY_ZAP=zap.sh</pre>
+HACKLY_ZAP=zap.sh
+
+<span class="tok-cmt"># GitHub repository scanning</span>
+HACKLY_GIT=git
+HACKLY_COMPOSER=composer
+HACKLY_SEMGREP=semgrep
+HACKLY_TRIVY=trivy
+HACKLY_GITLEAKS=gitleaks
+HACKLY_CHECKOV=checkov
+HACKLY_REPO_NIGHTLY_AT=02:30
+HACKLY_REPO_NIGHTLY_TZ=UTC
+HACKLY_NIGHTLY_REPO_PROFILE=standard
+HACKLY_NIGHTLY_TARGET_PROFILE=deep
+<span class="tok-cmt"># HACKLY_SEMGREP_CONFIG=p/php</span>
+<span class="tok-cmt"># HACKLY_OSV_ENABLED=true</span>
+<span class="tok-cmt"># HACKLY_REPO_HIDE_UNREACHABLE=false</span>
+<span class="tok-cmt"># HACKLY_REPO_DROP_NOISE=false</span></pre>
           </div>
         </article>
 
         <article class="doc-block" id="doc-security">
           <h3>Security model</h3>
           <ul>
-            <li>Scans require <strong>ownership verification</strong> (DNS TXT for domains)</li>
-            <li>Optional <strong>allowlist</strong> and private-IP blocking</li>
+            <li><strong>Target</strong> scans require <strong>ownership verification</strong> (DNS TXT for domains)</li>
+            <li><strong>Repository</strong> scans require a GitHub token with read access to that repo</li>
+            <li>Linking Targets ↔ Repositories is optional; scans remain independently startable</li>
+            <li>Optional <strong>allowlist</strong> and private-IP blocking for Targets</li>
             <li>Soft <strong>rate limits</strong>, <strong>jitter</strong>, <strong>task spacing</strong>, and <strong>quiet hours</strong></li>
-            <li><strong>Deep</strong> profile has a cooldown between runs on the same target</li>
+            <li><strong>Deep</strong> target profile has a cooldown between runs (nightly ignores cooldown)</li>
+            <li>GitHub PATs are stored encrypted at rest (<code>APP_KEY</code>) via the <strong>GitHub tokens</strong> UI</li>
+            <li>Repo workspace clones are removed after finalize when <code>HACKLY_REPO_CLEANUP=true</code> (default)</li>
             <li>Admin accounts support <strong>TOTP</strong> and <strong>email</strong> multi-factor authentication</li>
           </ul>
           <div class="callout">
             Hackly is an orchestration layer — it does not replace responsible disclosure policies
-            or scoped pentest agreements.
+            or scoped pentest agreements. PHP reachability / noise reduction is heuristic
+            (strong signal for Laravel apps), not a full interprocedural guarantee.
           </div>
         </article>
 
@@ -1216,7 +1534,9 @@ HACKLY_ZAP=zap.sh</pre>
             <li>Prefer <code>HACKLY_ALLOWLIST_ONLY=true</code> with an explicit allowlist</li>
             <li>Configure real mail for email 2FA (<code>MAIL_MAILER=…</code>)</li>
             <li>Change the seeded admin password immediately</li>
-            <li>Run a persistent <code>queue:work</code> (and optionally <code>schedule:work</code> for cleanup)</li>
+            <li>Store GitHub PATs only via the <strong>GitHub tokens</strong> UI</li>
+            <li>Run both install scripts on the scan worker host, then <code>hackly:check-binaries</code> as the queue user</li>
+            <li>Run a persistent <code>queue:work</code> and <code>schedule:work</code> (or cron) for nightly + cleanup</li>
           </ul>
           <p style="margin-top:1rem">
             Source and issues:
