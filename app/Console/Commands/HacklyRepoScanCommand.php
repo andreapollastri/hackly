@@ -10,36 +10,20 @@ use Illuminate\Console\Command;
 class HacklyRepoScanCommand extends Command
 {
     protected $signature = 'hackly:repo-scan
-        {repository? : Repository UUID or owner/name}
+        {repository : Repository UUID or owner/name}
         {--profile=standard : quick|standard|deep}
         {--include-targets : Also deep-scan all linked targets}
-        {--target-profile=deep : Profile for linked targets when --include-targets}
-        {--nightly : Deprecated — use hackly:nightly}';
+        {--target-profile=deep : Profile for linked targets when --include-targets}';
 
     protected $description = 'Start a GitHub repository security scan (optionally including linked targets)';
 
     public function handle(RepoScanDispatcher $dispatcher): int
     {
-        if ($this->option('nightly')) {
-            $this->warn('hackly:repo-scan --nightly is deprecated. Running hackly:nightly instead.');
-
-            return $this->call('hackly:nightly', [
-                '--repo-profile' => (string) $this->option('profile'),
-                '--target-profile' => (string) $this->option('target-profile'),
-            ]);
-        }
-
         $profile = ScanProfile::tryFrom((string) $this->option('profile')) ?? ScanProfile::Standard;
         $includeTargets = (bool) $this->option('include-targets');
         $targetProfile = ScanProfile::tryFrom((string) $this->option('target-profile')) ?? ScanProfile::Deep;
 
         $key = $this->argument('repository');
-
-        if (! filled($key)) {
-            $this->error('Provide a repository UUID/full_name, or use hackly:nightly.');
-
-            return self::FAILURE;
-        }
 
         $repo = Repository::query()
             ->with('credential')

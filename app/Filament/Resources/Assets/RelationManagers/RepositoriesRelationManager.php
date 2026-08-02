@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Assets\RelationManagers;
 use Filament\Actions\AttachAction;
 use Filament\Actions\DetachAction;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -22,7 +21,6 @@ class RepositoriesRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('full_name')->searchable(),
                 TextColumn::make('default_branch')->badge(),
-                IconColumn::make('nightly_enabled')->boolean()->label('Nightly'),
                 TextColumn::make('last_scanned_at')->since()->placeholder('Never'),
             ])
             ->headerActions([

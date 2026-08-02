@@ -258,13 +258,6 @@ return [
         'clone_timeout' => (int) env('HACKLY_REPO_CLONE_TIMEOUT', 300),
         'clone_depth' => (int) env('HACKLY_REPO_CLONE_DEPTH', 1),
         'job_timeout' => (int) env('HACKLY_REPO_JOB_TIMEOUT', 960),
-        'nightly_at' => env('HACKLY_REPO_NIGHTLY_AT', '02:30'),
-        'nightly_timezone' => env('HACKLY_REPO_NIGHTLY_TZ', env('APP_TIMEZONE', 'UTC')),
-        // hackly:nightly uses these profiles (override via CLI flags).
-        'nightly_repo_profile' => env('HACKLY_NIGHTLY_REPO_PROFILE', 'standard'),
-        'nightly_target_profile' => env('HACKLY_NIGHTLY_TARGET_PROFILE', 'deep'),
-        // hackly:hourly-repos — lighter profile; repo-only (no linked targets).
-        'hourly_repo_profile' => env('HACKLY_HOURLY_REPO_PROFILE', 'quick'),
 
         'profiles' => [
             'quick' => [

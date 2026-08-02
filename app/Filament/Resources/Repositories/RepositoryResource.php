@@ -27,7 +27,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 
 class RepositoryResource extends Resource
@@ -68,9 +67,6 @@ class RepositoryResource extends Resource
                     ->label('Default branch')
                     ->maxLength(100)
                     ->placeholder('main'),
-                Toggle::make('nightly_enabled')
-                    ->label('Nightly scan')
-                    ->default(true),
                 Select::make('assets')
                     ->label('Linked targets')
                     ->relationship('assets', 'value')
@@ -91,9 +87,6 @@ class RepositoryResource extends Resource
             TextEntry::make('is_private')
                 ->label('Visibility')
                 ->formatStateUsing(fn (bool $state): string => $state ? 'Private' : 'Public'),
-            TextEntry::make('nightly_enabled')->badge()
-                ->formatStateUsing(fn (bool $state): string => $state ? 'Nightly on' : 'Nightly off')
-                ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
             TextEntry::make('last_scanned_at')->dateTime()->placeholder('Never'),
             TextEntry::make('last_commit_sha')->label('Last commit')->placeholder('—')->copyable(),
             TextEntry::make('html_url')->label('GitHub')->url(fn (?string $state) => $state)->placeholder('—'),
@@ -109,7 +102,6 @@ class RepositoryResource extends Resource
                 TextColumn::make('full_name')->searchable()->sortable()->weight('medium'),
                 TextColumn::make('default_branch')->badge(),
                 IconColumn::make('is_private')->boolean()->label('Private'),
-                ToggleColumn::make('nightly_enabled')->label('Nightly'),
                 TextColumn::make('assets_count')->counts('assets')->label('Targets'),
                 TextColumn::make('last_scanned_at')->since()->placeholder('Never')->label('Last scan'),
                 TextColumn::make('status')->badge(),

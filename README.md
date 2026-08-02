@@ -19,8 +19,6 @@ Built with **Laravel 13** and **Filament 5**.
 | **Scans** | Target DAST profiles `quick` / `standard` / `deep` — jobs dispatch immediately |
 | **Repo scans** | SAST / SCA / secrets / IaC + Laravel-specific checks; independent from Targets |
 | **Findings** | Normalized LOW / MEDIUM / HIGH; repo findings include reachability & noise flags |
-| **Hourly repos** | All active repositories re-scanned every hour (`quick` profile) |
-| **Nightly** | All nightly repos (+ deep linked targets) and deep scan of unlinked targets |
 | **Reports** | PDF export per target scan |
 | **Safety** | Soft rate limits, jitter, quiet hours, deep-scan cooldown, optional allowlist |
 | **Admin** | Dashboard metrics, profile page, TOTP + email 2FA |
@@ -54,7 +52,7 @@ Orchestrated similarly to Aikido-style pipelines: open-source tools + Hackly pos
 | Laravel PHP audit | Hackly static checks on the clone | quick · standard · deep |
 | Laravel live pentest | Live probes on **linked** Targets (only when included) | standard · deep* |
 
-\* Live pentest runs only when the scan is started with **Include linked targets** (or nightly). Repo-only scans skip it.
+\* Live pentest runs only when the scan is started with **Include linked targets**. Repo-only scans skip it.
 
 **Post-processing (repo findings)**
 
@@ -168,7 +166,7 @@ Or separately:
 ```bash
 php artisan serve
 php artisan queue:work          # required for scans
-php artisan schedule:work       # nightly + cleanup
+php artisan schedule:work       # optional: cleanup only
 ```
 
 ---
@@ -224,42 +222,19 @@ Select only the repositories you intend to scan.
 | Repo only | Scan now (toggle off) | `hackly:repo-scan owner/repo` |
 | Repo + linked targets | Scan now → Include linked targets | `hackly:repo-scan owner/repo --include-targets` |
 
-### Hourly + nightly schedule
-
-`hackly:hourly-repos` runs **every hour** and queues a **quick** scan for every **active** repository (repo-only; skips repos that already have a pending/running scan).
-
-`hackly:nightly` runs daily (default **02:30**, timezone from config):
-
-1. Every **active** repository with **Nightly** enabled → repo scan + **deep** scan of linked verified Targets  
-2. Every **active verified Target with no linked repository** → **deep** scan  
-
-```bash
-php artisan hackly:hourly-repos
-php artisan hackly:nightly
-# optional overrides:
-php artisan hackly:hourly-repos --profile=standard
-php artisan hackly:nightly --repo-profile=deep --target-profile=deep
-```
-
-Ensure the scheduler is running in production:
-
-```bash
-* * * * * cd /path/to/hackly && php artisan schedule:run >> /dev/null 2>&1
-```
-
 ### Commands
+
+Scans are started **manually** from the admin UI or CLI — there is no automatic hourly/nightly scan schedule.
 
 | Command | Purpose |
 |---------|---------|
 | `hackly:check-binaries` | Verify scanner binaries (target + repo tools) |
 | `hackly:scan {target} --profile=standard` | Target scan; optional `--include-repos` |
 | `hackly:repo-scan {owner/repo} --profile=standard` | Repo scan; optional `--include-targets` |
-| `hackly:hourly-repos` | Hourly scan of all active repositories |
-| `hackly:nightly` | Nightly orchestration (repos + standalone targets) |
 | `hackly:cleanup-outputs` | Delete old raw scanner outputs |
 | `hackly:dispatch-due` | Re-dispatch leftover pending tasks |
 | `queue:work` | Process scan jobs |
-| `schedule:work` / cron `schedule:run` | Hourly repos + cleanup + nightly |
+| `schedule:work` / cron `schedule:run` | Hourly cleanup of old outputs (optional) |
 
 ---
 
@@ -304,10 +279,6 @@ HACKLY_SEMGREP=semgrep
 HACKLY_TRIVY=trivy
 HACKLY_GITLEAKS=gitleaks
 HACKLY_CHECKOV=checkov
-HACKLY_REPO_NIGHTLY_AT=02:30
-HACKLY_REPO_NIGHTLY_TZ=UTC
-HACKLY_NIGHTLY_REPO_PROFILE=standard
-HACKLY_NIGHTLY_TARGET_PROFILE=deep
 # HACKLY_SEMGREP_CONFIG=p/php
 # HACKLY_OSV_ENABLED=true
 # HACKLY_REPO_HIDE_UNREACHABLE=false
@@ -332,7 +303,7 @@ HACKLY_NIGHTLY_TARGET_PROFILE=deep
 - Linking Targets ↔ Repositories is optional; scans remain independently startable
 - Optional **allowlist** and private-IP blocking for Targets
 - Soft **rate limits**, **jitter**, **task spacing**, and **quiet hours** reduce ban risk and noise
-- **Deep** target profile has a cooldown between runs (nightly ignores cooldown)
+- **Deep** target profile has a cooldown between runs
 - Admin accounts support **TOTP** and **email** multi-factor authentication
 - Repo workspace clones are removed after finalize when `HACKLY_REPO_CLEANUP=true` (default)
 

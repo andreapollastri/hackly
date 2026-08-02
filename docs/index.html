@@ -925,7 +925,7 @@
         <div class="coverage-row">
           <span class="n">07</span>
           <span class="name">Laravel live pentest</span>
-          <span class="desc">HTTP probes on <strong>linked</strong> Targets when “Include linked targets” (or nightly).</span>
+          <span class="desc">HTTP probes on <strong>linked</strong> Targets when “Include linked targets”.</span>
           <span class="tag">standard · deep</span>
         </div>
       </div>
@@ -967,7 +967,7 @@ php artisan migrate --seed">Copy</button>
 <span class="tok-cmt"># or separately:</span>
 <span class="tok-cmd">php artisan serve</span>
 <span class="tok-cmd">php artisan queue:work</span>  <span class="tok-cmt"># required</span>
-<span class="tok-cmd">php artisan schedule:work</span>  <span class="tok-cmt"># nightly + cleanup</span></pre>
+<span class="tok-cmd">php artisan schedule:work</span>  <span class="tok-cmt"># optional: cleanup only</span></pre>
         </div>
       </div>
 
@@ -1009,7 +1009,6 @@ php artisan migrate --seed">Copy</button>
           <li><a href="#doc-repos">Repositories</a></li>
           <li><a href="#doc-modes">Scan modes</a></li>
           <li><a href="#doc-profiles">Scan profiles</a></li>
-          <li><a href="#doc-nightly">Nightly</a></li>
           <li><a href="#doc-commands">Commands</a></li>
           <li><a href="#doc-configuration">Configuration</a></li>
           <li><a href="#doc-security">Security model</a></li>
@@ -1281,7 +1280,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
             </table>
           </div>
           <p style="margin-top:1rem">
-            Laravel live pentest runs only when the repo scan includes linked targets (or via nightly).
+            Laravel live pentest runs only when the repo scan includes linked targets.
             Repo-only scans skip it.
           </p>
         </article>
@@ -1345,38 +1344,11 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
           </p>
         </article>
 
-        <article class="doc-block" id="doc-nightly">
-          <h3>Nightly schedule</h3>
-          <p>
-            <code>hackly:nightly</code> runs daily (default <strong>02:30</strong>, timezone from config):
-          </p>
-          <ol>
-            <li>Every <strong>active</strong> repository with <strong>Nightly</strong> enabled → repo scan + <strong>deep</strong> scan of linked verified Targets</li>
-            <li>Every <strong>active verified Target with no linked repository</strong> → <strong>deep</strong> scan</li>
-          </ol>
-          <div class="code-block">
-            <div class="code-header">
-              <span>Terminal</span>
-              <button class="copy-btn" type="button" data-copy="php artisan hackly:nightly
-php artisan hackly:nightly --repo-profile=deep --target-profile=deep">Copy</button>
-            </div>
-            <pre><span class="tok-cmd">php artisan hackly:nightly</span>
-<span class="tok-cmd">php artisan hackly:nightly</span> <span class="tok-flag">--repo-profile=deep</span> <span class="tok-flag">--target-profile=deep</span></pre>
-          </div>
-          <p style="margin-top:1rem">
-            Nightly ignores the deep-scan cooldown. Ensure the scheduler is running in production:
-          </p>
-          <div class="code-block">
-            <div class="code-header">
-              <span>crontab</span>
-              <button class="copy-btn" type="button" data-copy="* * * * * cd /path/to/hackly && php artisan schedule:run >> /dev/null 2>&1">Copy</button>
-            </div>
-            <pre>* * * * * cd /path/to/hackly &amp;&amp; php artisan schedule:run &gt;&gt; /dev/null 2&gt;&amp;1</pre>
-          </div>
-        </article>
-
         <article class="doc-block" id="doc-commands">
           <h3>Commands</h3>
+          <p>
+            Scans are started <strong>manually</strong> from the admin UI or CLI — there is no automatic hourly/nightly scan schedule.
+          </p>
           <div class="table-wrap">
             <table class="docs-table">
               <thead>
@@ -1399,10 +1371,6 @@ php artisan hackly:nightly --repo-profile=deep --target-profile=deep">Copy</butt
                   <td>Repo scan (<code>--profile=</code>, <code>--include-targets</code>)</td>
                 </tr>
                 <tr>
-                  <td class="mono">hackly:nightly</td>
-                  <td>Nightly orchestration (repos + standalone targets)</td>
-                </tr>
-                <tr>
                   <td class="mono">hackly:cleanup-outputs</td>
                   <td>Delete old raw scanner outputs</td>
                 </tr>
@@ -1416,7 +1384,7 @@ php artisan hackly:nightly --repo-profile=deep --target-profile=deep">Copy</butt
                 </tr>
                 <tr>
                   <td class="mono">schedule:work</td>
-                  <td>Nightly + hourly cleanup (or cron <code>schedule:run</code>)</td>
+                  <td>Hourly cleanup of old outputs (or cron <code>schedule:run</code>)</td>
                 </tr>
               </tbody>
             </table>
@@ -1457,11 +1425,7 @@ HACKLY_COMPOSER=composer
 HACKLY_SEMGREP=semgrep
 HACKLY_TRIVY=trivy
 HACKLY_GITLEAKS=gitleaks
-HACKLY_CHECKOV=checkov
-HACKLY_REPO_NIGHTLY_AT=02:30
-HACKLY_REPO_NIGHTLY_TZ=UTC
-HACKLY_NIGHTLY_REPO_PROFILE=standard
-HACKLY_NIGHTLY_TARGET_PROFILE=deep">Copy</button>
+HACKLY_CHECKOV=checkov">Copy</button>
             </div>
             <pre>QUEUE_CONNECTION=database
 CACHE_STORE=database
@@ -1496,10 +1460,6 @@ HACKLY_SEMGREP=semgrep
 HACKLY_TRIVY=trivy
 HACKLY_GITLEAKS=gitleaks
 HACKLY_CHECKOV=checkov
-HACKLY_REPO_NIGHTLY_AT=02:30
-HACKLY_REPO_NIGHTLY_TZ=UTC
-HACKLY_NIGHTLY_REPO_PROFILE=standard
-HACKLY_NIGHTLY_TARGET_PROFILE=deep
 <span class="tok-cmt"># HACKLY_SEMGREP_CONFIG=p/php</span>
 <span class="tok-cmt"># HACKLY_OSV_ENABLED=true</span>
 <span class="tok-cmt"># HACKLY_REPO_HIDE_UNREACHABLE=false</span>
@@ -1515,7 +1475,7 @@ HACKLY_NIGHTLY_TARGET_PROFILE=deep
             <li>Linking Targets ↔ Repositories is optional; scans remain independently startable</li>
             <li>Optional <strong>allowlist</strong> and private-IP blocking for Targets</li>
             <li>Soft <strong>rate limits</strong>, <strong>jitter</strong>, <strong>task spacing</strong>, and <strong>quiet hours</strong></li>
-            <li><strong>Deep</strong> target profile has a cooldown between runs (nightly ignores cooldown)</li>
+            <li><strong>Deep</strong> target profile has a cooldown between runs</li>
             <li>GitHub PATs are stored encrypted at rest (<code>APP_KEY</code>) via the <strong>GitHub tokens</strong> UI</li>
             <li>Repo workspace clones are removed after finalize when <code>HACKLY_REPO_CLEANUP=true</code> (default)</li>
             <li>Admin accounts support <strong>TOTP</strong> and <strong>email</strong> multi-factor authentication</li>
@@ -1536,7 +1496,7 @@ HACKLY_NIGHTLY_TARGET_PROFILE=deep
             <li>Change the seeded admin password immediately</li>
             <li>Store GitHub PATs only via the <strong>GitHub tokens</strong> UI</li>
             <li>Run both install scripts on the scan worker host, then <code>hackly:check-binaries</code> as the queue user</li>
-            <li>Run a persistent <code>queue:work</code> and <code>schedule:work</code> (or cron) for nightly + cleanup</li>
+            <li>Run a persistent <code>queue:work</code>; optionally <code>schedule:work</code> (or cron) for output cleanup</li>
           </ul>
           <p style="margin-top:1rem">
             Source and issues:

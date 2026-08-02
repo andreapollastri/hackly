@@ -36,7 +36,7 @@ class RepoScanDispatcher
     ) {}
 
     /**
-     * @param  list<string>  $skipAssetIds  Asset IDs already queued in this nightly/batch (avoid duplicates)
+     * @param  list<string>  $skipAssetIds  Asset IDs already queued in this batch (avoid duplicates)
      * @return array{scan: RepoScan, linked_target_scans: list<string>}
      */
     public function createScan(

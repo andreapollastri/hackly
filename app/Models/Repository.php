@@ -20,7 +20,6 @@ class Repository extends Model
         'full_name',
         'default_branch',
         'is_private',
-        'nightly_enabled',
         'status',
         'html_url',
         'last_scanned_at',
@@ -33,7 +32,6 @@ class Repository extends Model
     {
         return [
             'is_private' => 'boolean',
-            'nightly_enabled' => 'boolean',
             'last_scanned_at' => 'datetime',
             'meta' => 'array',
         ];

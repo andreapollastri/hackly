@@ -28,7 +28,6 @@ return new class extends Migration
             $table->string('full_name')->unique();
             $table->string('default_branch')->default('main');
             $table->boolean('is_private')->default(true);
-            $table->boolean('nightly_enabled')->default(true);
             $table->string('status')->default('active');
             $table->string('html_url')->nullable();
             $table->timestamp('last_scanned_at')->nullable();
@@ -36,8 +35,6 @@ return new class extends Migration
             $table->json('meta')->nullable();
             $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-
-            $table->index(['nightly_enabled', 'status']);
         });
 
         Schema::create('asset_repository', function (Blueprint $table) {
