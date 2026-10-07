@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\FindingSeverity;
 use App\Enums\FindingStatus;
 use App\Enums\Reachability;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +14,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Finding extends Model
 {
     use HasUuids;
+
+    /**
+     * Categories that record context rather than a problem (passed checks, scan deltas).
+     */
+    public const NON_ISSUE_CATEGORIES = ['passed', 'scan_diff'];
 
     protected $fillable = [
         'asset_id',
@@ -43,6 +50,78 @@ class Finding extends Model
             'noise_filtered' => 'boolean',
             'evidence' => 'array',
         ];
+    }
+
+    /**
+     * Only real issues — excludes passed checks and scan delta bookkeeping rows.
+     */
+    #[Scope]
+    protected function issues(Builder $query): void
+    {
+        $query->where(fn (Builder $q) => $q
+            ->whereNull('category')
+            ->orWhereNotIn('category', self::NON_ISSUE_CATEGORIES));
+    }
+
+    #[Scope]
+    protected function open(Builder $query): void
+    {
+        $query->where('status', FindingStatus::Open);
+    }
+
+    #[Scope]
+    protected function unresolved(Builder $query): void
+    {
+        $query->whereIn('status', [FindingStatus::Open->value, FindingStatus::Ack->value]);
+    }
+
+    /**
+     * Status to store when a scanner reports this fingerprint again.
+     * Triage decisions (acknowledged / false positive) survive re-scans; anything else (re)opens.
+     */
+    public static function statusAfterRedetection(string $fingerprint): FindingStatus
+    {
+        $current = static::query()->where('fingerprint', $fingerprint)->value('status');
+
+        $current = $current instanceof FindingStatus ? $current : FindingStatus::tryFrom((string) $current);
+
+        return in_array($current, [FindingStatus::Ack, FindingStatus::FalsePositive], true)
+            ? $current
+            : FindingStatus::Open;
+    }
+
+    public static function categoryLabel(?string $category): string
+    {
+        if (blank($category)) {
+            return '—';
+        }
+
+        $acronyms = [
+            'sca' => 'SCA', 'sast' => 'SAST', 'iac' => 'IaC', 'spf' => 'SPF', 'dkim' => 'DKIM',
+            'dmarc' => 'DMARC', 'mx' => 'MX', 'mta_sts' => 'MTA-STS', 'tlsrpt' => 'TLS-RPT',
+            'bimi' => 'BIMI', 'cors' => 'CORS', 'caa' => 'CAA', 'dnssec' => 'DNSSEC', 'tls' => 'TLS',
+            'ip' => 'IP', 'zap' => 'ZAP', 'whois' => 'WHOIS', 'scan_diff' => 'Scan delta',
+            'dependency_health' => 'Dependency health',
+        ];
+
+        return $acronyms[$category] ?? str($category)->replace('_', ' ')->ucfirst()->toString();
+    }
+
+    public function isIssue(): bool
+    {
+        return ! in_array($this->category, self::NON_ISSUE_CATEGORIES, true);
+    }
+
+    public function isRepositoryFinding(): bool
+    {
+        return $this->repository_id !== null && $this->asset_id === null;
+    }
+
+    public function subjectName(): string
+    {
+        return $this->asset?->value
+            ?? $this->repository?->full_name
+            ?? '—';
     }
 
     public function asset(): BelongsTo

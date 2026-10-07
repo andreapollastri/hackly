@@ -13,14 +13,14 @@
             line-height: 1.45;
         }
         .header {
-            border-bottom: 3px solid #0d9488;
+            border-bottom: 3px solid #7c3aed;
             padding-bottom: 14px;
             margin-bottom: 18px;
         }
         .brand {
             font-size: 22px;
             font-weight: 700;
-            color: #0f766e;
+            color: #6d28d9;
             letter-spacing: -0.02em;
         }
         .subtitle {
@@ -48,7 +48,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            color: #0f766e;
+            color: #6d28d9;
             margin: 18px 0 10px;
         }
         .summary {
@@ -99,7 +99,7 @@
         }
         .findings th {
             text-align: left;
-            background: #0f766e;
+            background: #6d28d9;
             color: #fff;
             padding: 8px;
             font-size: 10px;
@@ -181,6 +181,8 @@
 </head>
 <body>
     @php
+        $passedChecks = $findings->reject(fn ($finding) => $finding->isIssue())->values();
+        $findings = $findings->filter(fn ($finding) => $finding->isIssue())->values();
         $total = max(1, array_sum($summary));
         $highPct = round(($summary['high'] / $total) * 100, 1);
         $mediumPct = round(($summary['medium'] / $total) * 100, 1);
@@ -204,9 +206,9 @@
         </tr>
         <tr>
             <td class="label">Profile</td>
-            <td>{{ strtoupper($scan->profile->value) }}</td>
+            <td>{{ $scan->profile->getLabel() }}</td>
             <td class="label">Status</td>
-            <td>{{ strtoupper($scan->status->value) }}</td>
+            <td>{{ $scan->status->getLabel() }}</td>
         </tr>
         <tr>
             <td class="label">Started</td>
@@ -217,8 +219,8 @@
         <tr>
             <td class="label">Requested by</td>
             <td>{{ $scan->requester?->email ?? '—' }}</td>
-            <td class="label">Findings</td>
-            <td>{{ $findings->count() }}</td>
+            <td class="label">Issues</td>
+            <td>{{ $findings->count() }} ({{ $passedChecks->count() }} passed checks)</td>
         </tr>
     </table>
 
@@ -230,12 +232,12 @@
                 <div class="label" style="color:#dc2626;">HIGH</div>
             </td>
             <td>
-                <div class="count" style="color:#ea580c;">{{ $summary['medium'] }}</div>
-                <div class="label" style="color:#ea580c;">MEDIUM</div>
+                <div class="count" style="color:#d97706;">{{ $summary['medium'] }}</div>
+                <div class="label" style="color:#d97706;">MEDIUM</div>
             </td>
             <td>
-                <div class="count" style="color:#16a34a;">{{ $summary['low'] }}</div>
-                <div class="label" style="color:#16a34a;">LOW</div>
+                <div class="count" style="color:#0284c7;">{{ $summary['low'] }}</div>
+                <div class="label" style="color:#0284c7;">LOW</div>
             </td>
         </tr>
     </table>
@@ -243,8 +245,8 @@
     @if (array_sum($summary) > 0)
         <div class="bar-wrap">
             <div class="bar" style="width:{{ $highPct }}%; background:#dc2626;"></div>
-            <div class="bar" style="width:{{ $mediumPct }}%; background:#ea580c;"></div>
-            <div class="bar" style="width:{{ $lowPct }}%; background:#16a34a;"></div>
+            <div class="bar" style="width:{{ $mediumPct }}%; background:#d97706;"></div>
+            <div class="bar" style="width:{{ $lowPct }}%; background:#0284c7;"></div>
         </div>
     @endif
 
@@ -261,8 +263,8 @@
         <tbody>
             @forelse ($scan->tasks as $task)
                 <tr>
-                    <td>{{ $task->type->value }}</td>
-                    <td>{{ $task->status->value }}</td>
+                    <td>{{ $task->type->getLabel() }}</td>
+                    <td>{{ $task->status->getLabel() }}</td>
                     <td>{{ optional($task->started_at)->format('Y-m-d H:i') ?? '—' }}</td>
                     <td>{{ optional($task->finished_at)->format('Y-m-d H:i') ?? '—' }}</td>
                 </tr>
@@ -277,13 +279,14 @@
     <div style="page-break-before: always;"></div>
     <div class="section-title">Findings</div>
     @if ($findings->isEmpty())
-        <div class="empty">No findings were reported for this scan.</div>
+        <div class="empty">No issues were reported for this scan.</div>
     @else
         <table class="findings">
             <thead>
                 <tr>
                     <th style="width:70px;">Severity</th>
                     <th>Finding</th>
+                    <th style="width:70px;">Status</th>
                     <th style="width:70px;">Source</th>
                     <th style="width:90px;">Category</th>
                     <th style="width:90px;">CVE</th>
@@ -310,9 +313,24 @@
                                 </div>
                             @endif
                         </td>
+                        <td>{{ $finding->status?->getLabel() ?? '—' }}</td>
                         <td>{{ $finding->source }}</td>
                         <td>{{ $finding->category ?? '—' }}</td>
                         <td>{{ $finding->cve ?? '—' }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
+    @if ($passedChecks->isNotEmpty())
+        <div class="section-title">Passed checks</div>
+        <table class="tasks">
+            <tbody>
+                @foreach ($passedChecks as $check)
+                    <tr>
+                        <td>{{ $check->title }}</td>
+                        <td style="width:90px;">{{ $check->source }}</td>
                     </tr>
                 @endforeach
             </tbody>

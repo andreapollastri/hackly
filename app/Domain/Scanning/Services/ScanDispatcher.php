@@ -236,9 +236,11 @@ class ScanDispatcher
         $asset = $task->scan->asset;
 
         foreach ($findings as $finding) {
+            $fingerprint = $finding->resolvedFingerprint($asset->id);
+
             Finding::query()->updateOrCreate(
                 [
-                    'fingerprint' => $finding->resolvedFingerprint($asset->id),
+                    'fingerprint' => $fingerprint,
                 ],
                 [
                     'asset_id' => $asset->id,
@@ -249,7 +251,7 @@ class ScanDispatcher
                     'category' => $finding->category,
                     'cve' => $finding->cve,
                     'source' => $finding->source,
-                    'status' => FindingStatus::Open,
+                    'status' => Finding::statusAfterRedetection($fingerprint),
                     'evidence' => $this->sanitizeEvidence($finding->evidence),
                     'description' => $finding->description,
                 ]
@@ -283,7 +285,7 @@ class ScanDispatcher
 
         $fixedCount = Finding::query()
             ->where('asset_id', $assetId)
-            ->where('status', FindingStatus::Open)
+            ->whereIn('status', [FindingStatus::Open, FindingStatus::Ack])
             ->where('category', '!=', 'passed')
             ->where(function ($query) use ($scan) {
                 $query->whereNull('scan_id')

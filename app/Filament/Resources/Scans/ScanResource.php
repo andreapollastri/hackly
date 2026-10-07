@@ -2,33 +2,32 @@
 
 namespace App\Filament\Resources\Scans;
 
-use App\Enums\FindingSeverity;
-use App\Enums\ScanProfile;
-use App\Enums\ScanStatus;
-use App\Enums\ScanTaskStatus;
+use App\Filament\Actions\ScanRunActions;
+use App\Filament\Resources\Assets\AssetResource;
 use App\Filament\Resources\Scans\Pages\ManageScans;
 use App\Filament\Resources\Scans\Pages\ViewScan;
 use App\Filament\Resources\Scans\RelationManagers\FindingsRelationManager;
+use App\Filament\Resources\Scans\Tables\ScanColumns;
+use App\Filament\Support\NavigationGroup;
 use App\Models\Finding;
+use App\Models\RepoScan;
 use App\Models\Scan;
-use App\Models\ScanTask;
 use BackedEnum;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Infolists\Components\RepeatableEntry;
-use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ViewColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use UnitEnum;
 
 class ScanResource extends Resource
 {
@@ -36,9 +35,29 @@ class ScanResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedQueueList;
 
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Security;
+
     protected static ?string $navigationLabel = 'Scans';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 1;
+
+    public static function getNavigationBadge(): ?string
+    {
+        $running = once(fn (): int => Scan::query()->whereIn('status', ['pending', 'running'])->count()
+            + RepoScan::query()->whereIn('status', ['pending', 'running'])->count());
+
+        return $running > 0 ? (string) $running : null;
+    }
+
+    public static function getNavigationBadgeColor(): string
+    {
+        return 'info';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Scans in progress';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -47,156 +66,65 @@ class ScanResource extends Resource
 
     public static function infolist(Schema $schema): Schema
     {
-        return $schema->components([
-            TextEntry::make('id')->label('Scan')->copyable(),
-            TextEntry::make('asset.value')->label('Target'),
-            TextEntry::make('profile')->badge(),
-            TextEntry::make('status')->badge()
-                ->color(fn (ScanStatus $state): string => match ($state) {
-                    ScanStatus::Completed => 'success',
-                    ScanStatus::Running => 'warning',
-                    ScanStatus::Failed => 'danger',
-                    default => 'gray',
-                }),
-            TextEntry::make('progress')
-                ->label('Progress')
-                ->state(fn (Scan $record) => $record->progressPercent().'% ('.$record->finishedTasksCount().'/'.$record->totalTasksCount().')'),
-            TextEntry::make('started_at')->dateTime()->placeholder('—'),
-            TextEntry::make('finished_at')->dateTime()->placeholder('—'),
-            TextEntry::make('error_message')->columnSpanFull()->placeholder('—'),
-            RepeatableEntry::make('tasks')
-                ->label('Tasks')
-                ->contained(false)
-                ->schema([
-                    Section::make(fn (?ScanTask $record): string => $record?->type?->value ?? 'Task')
-                        ->description(fn (?ScanTask $record): ?string => static::taskAccordionDescription($record))
-                        ->icon(fn (?ScanTask $record): Heroicon => match ($record?->status) {
-                            ScanTaskStatus::Completed => Heroicon::OutlinedCheckCircle,
-                            ScanTaskStatus::Failed => Heroicon::OutlinedXCircle,
-                            ScanTaskStatus::Running => Heroicon::OutlinedArrowPath,
-                            ScanTaskStatus::Skipped => Heroicon::OutlinedMinusCircle,
-                            default => Heroicon::OutlinedClock,
-                        })
-                        ->iconColor(fn (?ScanTask $record): string => match ($record?->status) {
-                            ScanTaskStatus::Completed => 'success',
-                            ScanTaskStatus::Failed => 'danger',
-                            ScanTaskStatus::Running, ScanTaskStatus::Queued => 'warning',
-                            default => 'gray',
-                        })
-                        ->extraAttributes(fn (?ScanTask $record): array => [
-                            'class' => match ($record?->status) {
-                                ScanTaskStatus::Completed => 'hackly-task-accordion hackly-task-accordion--success',
-                                ScanTaskStatus::Failed => 'hackly-task-accordion hackly-task-accordion--danger',
-                                default => 'hackly-task-accordion',
-                            },
-                        ])
-                        ->compact()
-                        ->collapsible()
-                        ->collapsed()
-                        ->schema([
-                            TextEntry::make('status')
-                                ->badge()
-                                ->color(fn (ScanTaskStatus $state): string => match ($state) {
-                                    ScanTaskStatus::Completed => 'success',
-                                    ScanTaskStatus::Failed => 'danger',
-                                    ScanTaskStatus::Running, ScanTaskStatus::Queued => 'warning',
-                                    default => 'gray',
-                                }),
-                            TextEntry::make('scheduled_at')->dateTime()->label('Scheduled')->placeholder('—'),
-                            TextEntry::make('started_at')->dateTime()->placeholder('—'),
-                            TextEntry::make('finished_at')->dateTime()->placeholder('—'),
-                            TextEntry::make('error_message')
-                                ->placeholder('—')
-                                ->columnSpanFull()
-                                ->color(fn (?string $state): string => filled($state) ? 'danger' : 'gray'),
-                        ])
-                        ->columns(2),
-                ])
-                ->columnSpanFull(),
-        ]);
+        return $schema
+            ->columns(1)
+            ->components(static::scanDetailComponents());
     }
 
-    protected static function taskAccordionDescription(?ScanTask $record): ?string
+    /**
+     * Summary card + task timeline, shared with repository scans.
+     *
+     * @return list<Section|ViewEntry>
+     */
+    public static function scanDetailComponents(): array
     {
-        if (! $record) {
-            return null;
-        }
-
-        $status = $record->status?->value ?? 'unknown';
-
-        if ($record->status === ScanTaskStatus::Failed && filled($record->error_message)) {
-            return $status.' · '.str($record->error_message)->limit(90);
-        }
-
-        if ($record->finished_at) {
-            return $status.' · finished '.$record->finished_at->diffForHumans();
-        }
-
-        if ($record->started_at) {
-            return $status.' · started '.$record->started_at->diffForHumans();
-        }
-
-        if ($record->scheduled_at) {
-            return $status.' · scheduled '.$record->scheduled_at->diffForHumans();
-        }
-
-        return $status;
+        return [
+            ViewEntry::make('summary')
+                ->hiddenLabel()
+                ->view('filament.scans.summary'),
+            Section::make('Tasks')
+                ->description('Each scanner runs as its own queued job, spaced out by the soft rate limits.')
+                ->icon(Heroicon::OutlinedListBullet)
+                ->compact()
+                ->collapsible()
+                ->schema([
+                    ViewEntry::make('tasks')
+                        ->hiddenLabel()
+                        ->view('filament.scans.tasks'),
+                ]),
+        ];
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->defaultSort('created_at', 'desc')
-            ->poll('3s')
-            ->modifyQueryUsing(fn ($query) => $query
+            ->poll('5s')
+            ->modifyQueryUsing(fn (Builder $query) => $query
                 ->with(['asset', 'tasks'])
-                ->withCount([
-                    'findings as high_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::High),
-                    'findings as medium_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Medium),
-                    'findings as low_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Low),
-                ]))
+                ->withCount(Scan::severityCountsForQuery()))
             ->recordUrl(fn (Scan $record): string => static::getUrl('view', ['record' => $record]))
-            ->columns([
-                TextColumn::make('id')
-                    ->label('UUID')
-                    ->copyable()
-                    ->limit(8)
-                    ->tooltip(fn (Scan $record) => $record->id)
-                    ->searchable(),
+            ->columns(ScanColumns::columns(
                 TextColumn::make('asset.value')
                     ->label('Target')
+                    ->icon(Heroicon::OutlinedGlobeAlt)
+                    ->iconColor('gray')
+                    ->weight('medium')
                     ->searchable()
-                    ->weight('medium'),
-                TextColumn::make('profile')
-                    ->badge()
-                    ->color('info'),
-                TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (ScanStatus $state): string => match ($state) {
-                        ScanStatus::Completed => 'success',
-                        ScanStatus::Running => 'warning',
-                        ScanStatus::Failed => 'danger',
-                        ScanStatus::Cancelled => 'gray',
-                        default => 'gray',
-                    }),
-                ViewColumn::make('progress')
-                    ->label('Progress')
-                    ->view('filament.tables.columns.scan-progress'),
-                ViewColumn::make('findings_summary')
-                    ->label('Findings')
-                    ->view('filament.tables.columns.scan-findings-summary')
-                    ->state(fn (Scan $record) => $record->findingsSeveritySummary()),
-                TextColumn::make('created_at')->since()->sortable()->label('Started'),
-            ])
-            ->filters([
-                SelectFilter::make('profile')->options(collect(ScanProfile::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
-                SelectFilter::make('status')->options(collect(ScanStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
+                    ->url(fn (Scan $record): ?string => $record->asset ? AssetResource::getUrl('view', ['record' => $record->asset]) : null),
+            ))
+            ->filters(ScanColumns::filters())
+            ->recordActions([
+                ScanRunActions::rowMenu(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->emptyStateIcon(Heroicon::OutlinedQueueList)
+            ->emptyStateHeading('No target scans yet')
+            ->emptyStateDescription('Verify a target, then start a quick, standard or deep scan. Progress shows up here live.');
     }
 
     public static function getRelations(): array
@@ -256,16 +184,19 @@ class ScanResource extends Resource
         $scan->loadMissing(['asset', 'tasks', 'findings', 'requester']);
 
         $findings = $scan->findings
-            ->sortByDesc(fn ($finding) => $finding->severity->rank())
+            ->filter(fn (Finding $finding): bool => $finding->category !== 'scan_diff')
+            ->sortByDesc(fn (Finding $finding) => $finding->severity->rank())
             ->values();
+
+        $issues = $findings->filter(fn (Finding $finding): bool => $finding->isIssue());
 
         return [
             'scan' => $scan,
             'findings' => $findings,
             'summary' => [
-                'high' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::High)->count(),
-                'medium' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::Medium)->count(),
-                'low' => $findings->filter(fn ($f) => $f->severity === FindingSeverity::Low)->count(),
+                'high' => $issues->filter(fn (Finding $f) => $f->severity->value === 'high')->count(),
+                'medium' => $issues->filter(fn (Finding $f) => $f->severity->value === 'medium')->count(),
+                'low' => $issues->filter(fn (Finding $f) => $f->severity->value === 'low')->count(),
             ],
             'generatedAt' => now(),
         ];

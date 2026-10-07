@@ -274,68 +274,11 @@
 
     .legal-note strong { color: var(--ink-soft); }
 
-    .hero-visual {
-      position: relative;
-      width: 100%;
-      border-top: 1px solid var(--ink);
-      border-bottom: 1px solid var(--ink);
-      background: var(--ink);
-      color: #d7dde6;
-      animation: rise 0.8s 0.22s ease both;
-    }
 
-    .hero-visual::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 3px,
-        rgba(124, 58, 237, 0.04) 3px,
-        rgba(124, 58, 237, 0.04) 6px
-      );
-      animation: scan 10s linear infinite;
-      pointer-events: none;
-      z-index: 0;
-    }
 
-    .hero-visual-inner {
-      position: relative;
-      z-index: 1;
-      max-width: var(--max);
-      margin: 0 auto;
-      padding: 0 1.5rem;
-    }
 
-    .hero-visual-bar {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.85rem 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      font-family: var(--mono);
-      font-size: 0.75rem;
-      color: #8b95a5;
-    }
 
-    .hero-visual-bar i {
-      flex: 0 0 8px;
-      width: 8px;
-      height: 8px;
-      display: block;
-      background: var(--signal);
-    }
 
-    .hero-visual pre {
-      margin: 0;
-      padding: 1.25rem 0 1.75rem;
-      font-size: clamp(0.72rem, 1.6vw, 0.85rem);
-      line-height: 1.75;
-      white-space: pre;
-      overflow-x: auto;
-      tab-size: 2;
-    }
 
     .t-pass { color: #3dbe7a; }
     .t-fail { color: #c4b5fd; }
@@ -702,6 +645,215 @@
       color: var(--ink);
     }
 
+    /* Product shots */
+    .hero-shot {
+      position: relative;
+      padding: 0 1.5rem 4.5rem;
+      background: linear-gradient(180deg, transparent 0%, transparent 38%, var(--ink) 38%, var(--ink) 100%);
+      animation: rise 0.8s 0.22s ease both;
+    }
+
+    .hero-shot-inner {
+      max-width: var(--max);
+      margin: 0 auto;
+    }
+
+    .shot-switch {
+      display: inline-flex;
+      gap: 0.25rem;
+      padding: 0.25rem;
+      margin-bottom: 0.85rem;
+      border: 1px solid var(--line);
+      background: var(--white);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .shot-switch button {
+      border: 0;
+      background: transparent;
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      color: var(--muted);
+      font: inherit;
+    }
+
+    .shot-switch button[aria-pressed="true"] {
+      background: var(--ink);
+      color: var(--white);
+    }
+
+    .shot-frame {
+      border: 1px solid rgba(21, 24, 32, 0.18);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--white);
+      box-shadow: 0 30px 80px -30px rgba(21, 24, 32, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .shot-frame-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 0.85rem;
+      background: #eef1f5;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .shot-frame-bar i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #c8cfda;
+    }
+
+    .shot-frame-bar span {
+      margin-left: 0.75rem;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .shot-frame img {
+      display: block;
+      width: 100%;
+      height: auto;
+      cursor: zoom-in;
+    }
+
+    .shot-caption {
+      margin-top: 1rem;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: #8b95a5;
+      text-align: center;
+    }
+
+    /* Tour */
+    .tour-rows {
+      display: grid;
+      gap: 4.5rem;
+      margin-top: 3rem;
+    }
+
+    .tour-row {
+      display: grid;
+      gap: 1.75rem;
+      align-items: center;
+    }
+
+    @media (min-width: 960px) {
+      .tour-row {
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.45fr);
+        gap: 3rem;
+      }
+
+      .tour-row.flip { grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.8fr); }
+
+      .tour-row.flip > :first-child { order: 2; }
+    }
+
+    .tour-copy h3 {
+      font-family: var(--display);
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 0.75rem;
+    }
+
+    .tour-copy p {
+      color: var(--muted);
+    }
+
+    .tour-copy ul {
+      list-style: none;
+      margin-top: 1rem;
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .tour-copy li {
+      position: relative;
+      padding-left: 1.4rem;
+      color: var(--ink-soft);
+      font-size: 0.98rem;
+    }
+
+    .tour-copy li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.55em;
+      width: 0.55rem;
+      height: 0.55rem;
+      background: var(--signal);
+    }
+
+    .tour-grid {
+      display: grid;
+      gap: 1.25rem;
+      margin-top: 4.5rem;
+    }
+
+    @media (min-width: 760px) {
+      .tour-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    .tour-card {
+      border: 1px solid var(--line);
+      background: var(--white);
+    }
+
+    .tour-card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      object-position: top left;
+      border-bottom: 1px solid var(--line);
+      cursor: zoom-in;
+    }
+
+    .tour-card div {
+      padding: 0.9rem 1rem 1.1rem;
+    }
+
+    .tour-card h4 {
+      font-family: var(--display);
+      font-size: 1.02rem;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+
+    .tour-card p {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: rgba(13, 15, 20, 0.88);
+      backdrop-filter: blur(4px);
+      cursor: zoom-out;
+    }
+
+    .lightbox.open { display: flex; }
+
+    .lightbox img {
+      max-width: min(1400px, 100%);
+      max-height: 100%;
+      border-radius: 10px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    }
+
     /* Footer */
     footer {
       border-top: 1px solid var(--line);
@@ -777,6 +929,7 @@
       <span></span><span></span><span></span>
     </button>
     <div class="nav-links" id="nav-links">
+      <a href="#tour">Tour</a>
       <a href="#coverage">Coverage</a>
       <a href="#install">Install</a>
       <a href="#docs">Docs</a>
@@ -795,6 +948,7 @@
       </p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="#install">Get started</a>
+        <a class="btn btn-secondary" href="#tour">Take the tour</a>
         <a class="btn btn-secondary" href="#docs">Read the docs</a>
         <a class="btn btn-secondary" href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">View on GitHub</a>
       </div>
@@ -804,27 +958,128 @@
       </p>
     </div>
 
-    <div class="hero-visual" aria-hidden="true">
-      <div class="hero-visual-inner">
-        <div class="hero-visual-bar">
-          <i></i>
-          hackly · scan · profile=standard · example.com
+  </header>
+
+  <div class="hero-shot">
+    <div class="hero-shot-inner">
+      <div class="shot-switch" role="group" aria-label="Screenshot theme">
+        <button type="button" data-shot-theme="light" aria-pressed="true">Light</button>
+        <button type="button" data-shot-theme="dark" aria-pressed="false">Dark</button>
+      </div>
+      <div class="shot-frame">
+        <div class="shot-frame-bar" aria-hidden="true"><i></i><i></i><i></i><span>hackly.example.com — Overview</span></div>
+        <img id="hero-shot" src="screenshots/dashboard.png" data-light="screenshots/dashboard.png" data-dark="screenshots/dashboard-dark.png"
+             alt="Hackly overview: open findings by severity, new issues per day, issues by scanner and recent scans" width="1800" height="1325" loading="eager" />
+      </div>
+      <p class="shot-caption">Demo workspace · every name, domain and finding is fictional</p>
+    </div>
+  </div>
+
+  <section id="tour">
+    <div class="section-inner">
+      <p class="section-kicker">Product tour</p>
+      <h2 class="section-title">From “is it ours?”<br>to “it’s fixed”.</h2>
+      <p class="section-lead">
+        A calm, focused dashboard for the whole loop: verify ownership, scan, triage, re-scan.
+        Click any screenshot to zoom in.
+      </p>
+
+      <div class="tour-rows">
+        <div class="tour-row">
+          <div class="tour-copy">
+            <h3>Triage findings, not noise.</h3>
+            <p>Every scanner reports into one list, ranked High → Low, with the asset it belongs to.</p>
+            <ul>
+              <li>Open, Acknowledged, Fixed and False positive tabs</li>
+              <li>Bulk triage — decisions survive the next scan</li>
+              <li>Regressions reopen automatically</li>
+              <li>Passed checks hidden until you ask for them</li>
+            </ul>
+          </div>
+          <div class="shot-frame">
+            <div class="shot-frame-bar" aria-hidden="true"><i></i><i></i><i></i><span>Findings</span></div>
+            <img src="screenshots/findings.png" alt="Findings list with severity, asset, source and status" loading="lazy" width="1800" height="1250" />
+          </div>
         </div>
-        <pre><span class="t-dim">$</span> <span class="t-cmd">php artisan hackly:scan</span> <span class="t-arg">example.com</span> <span class="t-flag">--profile=standard</span>
-<span class="t-dim">→</span> Target verified via DNS TXT
-<span class="t-dim">→</span> Dispatching 6 tasks…
 
-  <span class="t-pass">✓</span> dns_info          <span class="t-dim">dig · whois</span>
-  <span class="t-pass">✓</span> port_scan         <span class="t-dim">nmap top-50</span>
-  <span class="t-pass">✓</span> subdomain_enum    <span class="t-dim">wordlist + CT</span>
-  <span class="t-pass">✓</span> tech_fingerprint  <span class="t-dim">PHP / Laravel</span>
-  <span class="t-warn">~</span> path_discovery    <span class="t-dim">soft wordlist</span>
-  <span class="t-hi">!</span> nuclei_owasp      <span class="t-fail">2 HIGH · 4 MEDIUM</span>
+        <div class="tour-row flip">
+          <div class="tour-copy">
+            <h3>Context in one click.</h3>
+            <p>Open a finding in a slide-over: where it lives, which scan saw it last, CVE links, PHP reachability and readable evidence.</p>
+            <ul>
+              <li>Reachable vs. unreachable dependencies</li>
+              <li>Noise annotations explained</li>
+              <li>Triage straight from the panel</li>
+            </ul>
+          </div>
+          <div class="shot-frame">
+            <div class="shot-frame-bar" aria-hidden="true"><i></i><i></i><i></i><span>Findings › detail</span></div>
+            <img src="screenshots/finding-detail.png" alt="Finding detail slide-over with evidence and triage actions" loading="lazy" width="1800" height="1250" />
+          </div>
+        </div>
 
-<span class="t-dim">Findings ordered HIGH → LOW · PDF ready</span></pre>
+        <div class="tour-row">
+          <div class="tour-copy">
+            <h3>Watch scans run live.</h3>
+            <p>Each scanner is its own queued job. Progress, duration and results update in place.</p>
+            <ul>
+              <li>Skipped tasks tell you which binary is missing</li>
+              <li>Warning when no queue worker picks up jobs</li>
+              <li>Cancel, run again, export PDF or Markdown</li>
+              <li>In-app notification when your scan finishes</li>
+            </ul>
+          </div>
+          <div class="shot-frame">
+            <div class="shot-frame-bar" aria-hidden="true"><i></i><i></i><i></i><span>Scans › api.acme.dev</span></div>
+            <img src="screenshots/scan-running.png" alt="Running scan with live task timeline" loading="lazy" width="1800" height="1475" />
+          </div>
+        </div>
+
+        <div class="tour-row flip">
+          <div class="tour-copy">
+            <h3>Ownership first. Always.</h3>
+            <p>No DNS verification, no scan. Hackly shows the exact TXT record to publish — with copy buttons — and checks it for you.</p>
+            <ul>
+              <li>Tokens are stable: reopening never invalidates a published record</li>
+              <li>Optional allowlist and private-IP blocking</li>
+              <li>Authorization reference stored with each target</li>
+            </ul>
+          </div>
+          <div class="shot-frame">
+            <div class="shot-frame-bar" aria-hidden="true"><i></i><i></i><i></i><span>Targets › staging.acme.dev</span></div>
+            <img src="screenshots/target-verification.png" alt="Guided DNS TXT ownership verification" loading="lazy" width="1800" height="1250" />
+          </div>
+        </div>
+      </div>
+
+      <div class="tour-grid">
+        <div class="tour-card">
+          <img src="screenshots/new-scan.png" alt="New scan dialog with profiles" loading="lazy" />
+          <div><h4>Profiles that explain themselves</h4><p>Quick, Standard or Deep — each one lists what it runs.</p></div>
+        </div>
+        <div class="tour-card">
+          <img src="screenshots/targets.png" alt="Targets with open issues" loading="lazy" />
+          <div><h4>Every asset at a glance</h4><p>Open issues, ownership and last scan for each target and repository.</p></div>
+        </div>
+        <div class="tour-card">
+          <img src="screenshots/repository.png" alt="Repository page" loading="lazy" />
+          <div><h4>Repositories, too</h4><p>Semgrep, Trivy, Gitleaks, Checkov, Composer audit &amp; outdated and Laravel checks.</p></div>
+        </div>
+        <div class="tour-card">
+          <img src="screenshots/scanner-health.png" alt="Scanner health page" loading="lazy" />
+          <div><h4>Scanner health</h4><p>Which tools the worker can run, queue state and every safety limit.</p></div>
+        </div>
+        <div class="tour-card">
+          <img src="screenshots/dashboard-dark.png" alt="Dashboard in dark mode" loading="lazy" />
+          <div><h4>Designed dark mode</h4><p>Every view — charts included — works in light and dark.</p></div>
+        </div>
+        <div class="tour-card">
+          <img src="screenshots/login.png" alt="Sign-in page" loading="lazy" />
+          <div><h4>Locked down</h4><p>Authenticator-app or email two-factor, recovery codes, encrypted tokens.</p></div>
+        </div>
       </div>
     </div>
-  </header>
+  </section>
 
   <section id="coverage">
     <div class="section-inner">
@@ -918,14 +1173,20 @@
         </div>
         <div class="coverage-row">
           <span class="n">06</span>
+          <span class="name">Composer outdated</span>
+          <span class="desc">Dependency health from <code>composer.lock</code>: abandoned packages, direct dependencies a major behind, Laravel out of security support.</span>
+          <span class="tag">standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">07</span>
           <span class="name">Laravel PHP audit</span>
           <span class="desc">Committed <code>.env</code>, debug packages, Telescope/Horizon hints, mass-assignment risks.</span>
           <span class="tag">quick · standard · deep</span>
         </div>
         <div class="coverage-row">
-          <span class="n">07</span>
+          <span class="n">08</span>
           <span class="name">Laravel live pentest</span>
-          <span class="desc">HTTP probes on <strong>linked</strong> Targets when “Include linked targets”.</span>
+          <span class="desc">HTTP probes on <strong>linked</strong> Targets when “Also deep-scan linked targets” is on.</span>
           <span class="tag">standard · deep</span>
         </div>
       </div>
@@ -948,13 +1209,17 @@
 cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite
-php artisan migrate --seed">Copy</button>
+php artisan migrate --seed
+php artisan db:seed --class=DemoSeeder">Copy</button>
           </div>
           <pre><span class="tok-cmd">composer install</span>
 <span class="tok-cmd">cp</span> <span class="tok-arg">.env.example</span> <span class="tok-arg">.env</span>
 <span class="tok-cmd">php artisan key:generate</span>
 <span class="tok-cmd">touch</span> <span class="tok-arg">database/database.sqlite</span>
-<span class="tok-cmd">php artisan migrate --seed</span></pre>
+<span class="tok-cmd">php artisan migrate --seed</span>
+
+<span class="tok-cmt"># optional: fictional demo workspace to explore</span>
+<span class="tok-cmd">php artisan db:seed</span> <span class="tok-flag">--class=DemoSeeder</span></pre>
         </div>
         <div class="code-block">
           <div class="code-header">
@@ -976,21 +1241,21 @@ php artisan migrate --seed">Copy</button>
           <span class="n">01</span>
           <div>
             <h3>Open the app</h3>
-            <p>Visit <code>/</code> — seeded as <code>admin@hackly.test</code> / <code>password</code>. Change it immediately.</p>
+            <p>Visit <code>/</code> — seeded as <code>admin@hackly.test</code> / <code>password</code>. Change it immediately and turn on two-factor authentication.</p>
           </div>
         </div>
         <div class="step">
           <span class="n">02</span>
           <div>
             <h3>Add a target or a repo</h3>
-            <p>Verify a domain via DNS TXT — and/or add a GitHub PAT, then register <code>owner/repo</code>.</p>
+            <p>The dashboard checklist walks you through it: add a domain and verify it via DNS TXT, and/or add a read-only GitHub token and register <code>owner/repo</code>.</p>
           </div>
         </div>
         <div class="step">
           <span class="n">03</span>
           <div>
-            <h3>Scan independently</h3>
-            <p>Target DAST, repo SAST/SCA, or both via linked Targets ↔ Repositories. Findings sort HIGH → LOW.</p>
+            <h3>Scan, then triage</h3>
+            <p>Target DAST, repository SAST / SCA, or both via linked assets. Work the Findings list from High to Low and mark what you fixed.</p>
           </div>
         </div>
       </div>
@@ -1007,6 +1272,7 @@ php artisan migrate --seed">Copy</button>
           <li><a href="#doc-binaries">Scanner binaries</a></li>
           <li><a href="#doc-usage">Targets</a></li>
           <li><a href="#doc-repos">Repositories</a></li>
+          <li><a href="#doc-findings">Findings &amp; triage</a></li>
           <li><a href="#doc-modes">Scan modes</a></li>
           <li><a href="#doc-profiles">Scan profiles</a></li>
           <li><a href="#doc-commands">Commands</a></li>
@@ -1057,7 +1323,7 @@ php artisan migrate --seed">Copy</button>
             <li>Composer</li>
             <li>SQLite <em>(default)</em> or MySQL / PostgreSQL</li>
             <li><code>git</code> <em>(for repository clones)</em></li>
-            <li>Node.js <em>(optional — Vite assets; Filament ships published assets)</em></li>
+            <li>Node.js <em>(optional — only for the Vite dev server; panel styles are plain CSS)</em></li>
           </ul>
           <div class="callout">
             Default admin after seed: <code>/</code> · <code>admin@hackly.test</code> · <code>password</code>
@@ -1142,7 +1408,7 @@ php artisan hackly:check-binaries">Copy</button>
                 </tr>
                 <tr>
                   <td class="mono">composer</td>
-                  <td><code>composer audit</code></td>
+                  <td><code>composer audit</code>, <code>composer outdated</code></td>
                 </tr>
               </tbody>
             </table>
@@ -1167,12 +1433,12 @@ php artisan hackly:check-binaries">Copy</button>
           <h3>Targets</h3>
           <h4>Admin UI</h4>
           <ol>
-            <li>Open <strong>Targets</strong> → create a domain or IP</li>
-            <li>Copy the <strong>DNS token</strong> → publish the TXT record at your DNS provider</li>
-            <li><strong>Verify DNS</strong> — must succeed before target scanning</li>
-            <li><strong>Start scan</strong> — pick a profile; optionally enable <strong>Include linked repositories</strong></li>
-            <li>Watch <strong>Scans</strong> for live progress, open findings (HIGH → LOW), export the <strong>PDF</strong></li>
-            <li>On a target’s detail page: <strong>Linked repositories</strong> + <strong>Scans</strong></li>
+            <li><strong>Targets → Add target</strong> — enter a domain (a pasted URL is normalized)</li>
+            <li>Publish the TXT record shown on the target page at your DNS provider</li>
+            <li><strong>Check DNS</strong> — once the token is found the target is unlocked</li>
+            <li><strong>Start scan</strong> — pick a profile; optionally <strong>Also scan linked repositories</strong></li>
+            <li>Follow progress live on the scan page; triage its findings or export a <strong>PDF / Markdown</strong> report</li>
+            <li>The target page groups <strong>Findings</strong>, <strong>Scans</strong> and <strong>Linked repositories</strong></li>
           </ol>
           <p style="margin-top:1rem">Targets do <strong>not</strong> need a linked repository.</p>
           <h4>CLI</h4>
@@ -1191,15 +1457,14 @@ php artisan hackly:scan example.com --include-repos">Copy</button>
           <h3>Repositories</h3>
           <h4>Admin UI</h4>
           <ol>
-            <li>Open <strong>GitHub tokens</strong> → add a PAT → <strong>Validate</strong></li>
-            <li>Open <strong>Repositories</strong> → add <code>owner/repo</code> (checked against the GitHub API)</li>
+            <li><strong>Settings → GitHub tokens → Add token</strong> (or create one inline while adding a repository)</li>
+            <li><strong>Repositories → Add repository</strong> — <code>owner/repo</code> or a <code>github.com</code> URL, checked against the GitHub API</li>
             <li>Optionally link one or more <strong>Targets</strong></li>
-            <li><strong>Scan now</strong> — pick a repo profile; optionally <strong>Include linked targets</strong> (queues deep DAST on each verified linked Target)</li>
-            <li>Review <strong>Repo scans</strong> and <strong>Findings</strong> on the repository page</li>
+            <li><strong>Scan now</strong> — pick a profile; optionally <strong>Also deep-scan linked targets</strong> (DAST + live Laravel probes)</li>
+            <li>Review findings and scan history on the repository page; export reports from any scan</li>
           </ol>
           <p style="margin-top:1rem">
-            Repo findings are stored on the repository (<code>asset_id</code> may be null).
-            PDF export is for <strong>target</strong> scans only.
+            Repository findings belong to the repository, not to a target, so a repository can be scanned without any linked domain.
           </p>
 
           <h4>GitHub token permissions</h4>
@@ -1244,6 +1509,32 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
           </div>
         </article>
 
+        <article class="doc-block" id="doc-findings">
+          <h3>Findings &amp; triage</h3>
+          <p>
+            <strong>Findings</strong> collects every issue from target and repository scans, ranked High → Low.
+            Passed checks are recorded too but hidden unless you enable the <em>Passed checks</em> filter.
+            Click a row to open it in a slide-over and triage it, or select many rows and triage them in bulk.
+          </p>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr><th>Status</th><th>Meaning</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="strong">Open</td><td>Reported and not triaged yet</td></tr>
+                <tr><td class="strong">Acknowledged</td><td>Someone owns it — still listed under “Needs attention” on the dashboard</td></tr>
+                <tr><td class="strong">Fixed</td><td>Marked by you; target findings are also closed automatically when a later scan of the same checks no longer reports them</td></tr>
+                <tr><td class="strong">False positive</td><td>Dismissed — re-detection keeps it dismissed</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            A <strong>Fixed</strong> finding that is detected again is reopened automatically, so regressions surface on their own.
+            Each scan also keeps a snapshot of its own High / Medium / Low counts, so history stays accurate after re-scans.
+          </div>
+        </article>
+
         <article class="doc-block" id="doc-modes">
           <h3>Independent scan modes</h3>
           <div class="table-wrap">
@@ -1263,7 +1554,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 </tr>
                 <tr>
                   <td class="strong">Target + repos</td>
-                  <td>Include linked repositories</td>
+                  <td>Also scan linked repositories</td>
                   <td class="mono">hackly:scan … --include-repos</td>
                 </tr>
                 <tr>
@@ -1273,7 +1564,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 </tr>
                 <tr>
                   <td class="strong">Repo + targets</td>
-                  <td>Include linked targets</td>
+                  <td>Also deep-scan linked targets</td>
                   <td class="mono">hackly:repo-scan … --include-targets</td>
                 </tr>
               </tbody>
@@ -1329,7 +1620,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 </tr>
                 <tr>
                   <td class="strong">standard</td>
-                  <td>+ <code>semgrep_sast</code>, <code>trivy_sca</code>, <code>laravel_live_pentest</code>*</td>
+                  <td>+ <code>semgrep_sast</code>, <code>trivy_sca</code>, <code>composer_outdated</code>, <code>laravel_live_pentest</code>*</td>
                 </tr>
                 <tr>
                   <td class="strong">deep</td>
@@ -1569,6 +1860,32 @@ HACKLY_CHECKOV=checkov
     );
 
     sections.forEach((section) => tocObserver.observe(section));
+
+    const heroShot = document.getElementById("hero-shot");
+    document.querySelectorAll("[data-shot-theme]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const theme = btn.getAttribute("data-shot-theme");
+        heroShot.src = heroShot.getAttribute("data-" + theme);
+        document.querySelectorAll("[data-shot-theme]").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+      });
+    });
+
+    const lightbox = document.createElement("div");
+    lightbox.className = "lightbox";
+    lightbox.setAttribute("role", "dialog");
+    lightbox.setAttribute("aria-label", "Screenshot preview");
+    lightbox.innerHTML = '<img alt="" />';
+    document.body.appendChild(lightbox);
+    const lightboxImg = lightbox.querySelector("img");
+    document.querySelectorAll(".shot-frame img, .tour-card img").forEach((img) => {
+      img.addEventListener("click", () => {
+        lightboxImg.src = img.currentSrc || img.src;
+        lightboxImg.alt = img.alt;
+        lightbox.classList.add("open");
+      });
+    });
+    lightbox.addEventListener("click", () => lightbox.classList.remove("open"));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") lightbox.classList.remove("open"); });
   </script>
 
   <script async src="https://stats.misterdev.it/i/c7030c4d-d3a8-476a-acb3-d0b82bc0b4b2.js"></script>

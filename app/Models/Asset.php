@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Asset extends Model
 {
@@ -61,6 +62,11 @@ class Asset extends Model
         return $this->hasMany(Scan::class);
     }
 
+    public function latestScan(): HasOne
+    {
+        return $this->hasOne(Scan::class)->latestOfMany('created_at');
+    }
+
     public function findings(): HasMany
     {
         return $this->hasMany(Finding::class);
@@ -86,6 +92,19 @@ class Asset extends Model
     public function isVerified(): bool
     {
         return $this->verified_at !== null;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === AssetStatus::Active;
+    }
+
+    /**
+     * DNS host where the ownership TXT record must be published.
+     */
+    public function verificationHost(): string
+    {
+        return $this->value;
     }
 
     public function httpBaseUrl(): string

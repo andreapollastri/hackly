@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Repository extends Model
 {
@@ -59,6 +60,11 @@ class Repository extends Model
         return $this->hasMany(RepoScan::class);
     }
 
+    public function latestScan(): HasOne
+    {
+        return $this->hasOne(RepoScan::class)->latestOfMany('created_at');
+    }
+
     public function findings(): HasMany
     {
         return $this->hasMany(Finding::class);
@@ -76,6 +82,16 @@ class Repository extends Model
             ->orderBy('value')
             ->first()
             ?? $this->assets()->orderBy('value')->first();
+    }
+
+    public function description(): ?string
+    {
+        return $this->meta['description'] ?? null;
+    }
+
+    public function language(): ?string
+    {
+        return $this->meta['language'] ?? null;
     }
 
     public function githubCloneUrl(): string

@@ -2,21 +2,48 @@
 
 namespace App\Enums;
 
-enum FindingSeverity: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasIcon;
+use Filament\Support\Contracts\HasLabel;
+use Filament\Support\Icons\Heroicon;
+
+enum FindingSeverity: string implements HasColor, HasIcon, HasLabel
 {
     case Low = 'low';
     case Medium = 'medium';
     case High = 'high';
 
+    /**
+     * Upper-case label used by PDF / Markdown reports.
+     */
     public function label(): string
     {
         return strtoupper($this->value);
     }
 
+    public function getLabel(): string
+    {
+        return ucfirst($this->value);
+    }
+
+    public function getColor(): string
+    {
+        return $this->color();
+    }
+
+    public function getIcon(): Heroicon
+    {
+        return match ($this) {
+            self::Low => Heroicon::OutlinedInformationCircle,
+            self::Medium => Heroicon::OutlinedExclamationTriangle,
+            self::High => Heroicon::OutlinedFire,
+        };
+    }
+
     public function color(): string
     {
         return match ($this) {
-            self::Low => 'success',
+            self::Low => 'info',
             self::Medium => 'warning',
             self::High => 'danger',
         };
@@ -25,8 +52,8 @@ enum FindingSeverity: string
     public function hex(): string
     {
         return match ($this) {
-            self::Low => '#16a34a',
-            self::Medium => '#ea580c',
+            self::Low => '#0284c7',
+            self::Medium => '#d97706',
             self::High => '#dc2626',
         };
     }

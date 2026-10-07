@@ -2,21 +2,21 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Resources\GithubCredentials\GithubCredentialResource;
-use App\Filament\Widgets\HacklyStatsOverview;
-use Filament\Actions\Action;
+use App\Filament\Pages\Dashboard;
+use App\Filament\Support\NavigationGroup;
+use App\Support\ScannerHealth;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Auth\MultiFactor\Email\EmailAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Support\Icons\Heroicon;
+use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -34,7 +34,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('/')
             ->login()
-            ->profile()
+            ->profile(isSimple: false)
             ->multiFactorAuthentication([
                 AppAuthentication::make()
                     ->recoverable()
@@ -42,75 +42,50 @@ class AdminPanelProvider extends PanelProvider
                 EmailAuthentication::make(),
             ])
             ->brandName('Hackly')
+            ->brandLogo(fn (): View => view('filament.brand.logo'))
+            ->brandLogoHeight('2rem')
             ->favicon(asset('favicon.svg'))
-            ->topNavigation()
-            ->userMenuItems([
-                Action::make('githubTokens')
-                    ->label('GitHub tokens')
-                    ->icon(Heroicon::OutlinedKey)
-                    ->url(fn (): string => GithubCredentialResource::getUrl('index'))
-                    ->sort(10),
-            ])
             ->colors([
-                'primary' => Color::Emerald,
-                'danger' => Color::Rose,
+                'primary' => Color::Violet,
+                'danger' => Color::Red,
                 'warning' => Color::Amber,
-                'success' => Color::Teal,
+                'success' => Color::Emerald,
                 'info' => Color::Sky,
                 'gray' => Color::Slate,
             ])
-            ->font('IBM Plex Sans')
+            ->sidebarCollapsibleOnDesktop()
+            ->sidebarWidth('16rem')
+            ->maxContentWidth(Width::ScreenTwoExtraLarge)
+            ->navigationGroups(NavigationGroup::class)
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
+            ->globalSearchFieldKeyBindingSuffix()
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
+            ->spa()
+            ->unsavedChangesAlerts()
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
-            ->widgets([
-                HacklyStatsOverview::class,
-            ])
             ->renderHook(
                 PanelsRenderHook::STYLES_AFTER,
-                fn (): HtmlString => new HtmlString(<<<'CSS'
-                    <style>
-                        .hackly-task-accordion {
-                            margin-block: 0.5rem;
-                        }
-
-                        .hackly-task-accordion > .fi-section {
-                            cursor: pointer;
-                            transition: box-shadow 150ms ease, background-color 150ms ease;
-                        }
-
-                        .hackly-task-accordion--success > .fi-section {
-                            background-color: color-mix(in oklab, var(--success-50) 80%, white);
-                            box-shadow:
-                                var(--tw-ring-inset,) 0 0 0 1px color-mix(in oklab, var(--success-500) 45%, transparent),
-                                var(--tw-shadow, 0 1px 2px 0 rgb(0 0 0 / 0.05));
-                        }
-
-                        .hackly-task-accordion--danger > .fi-section {
-                            background-color: color-mix(in oklab, var(--danger-50) 80%, white);
-                            box-shadow:
-                                var(--tw-ring-inset,) 0 0 0 1px color-mix(in oklab, var(--danger-500) 45%, transparent),
-                                var(--tw-shadow, 0 1px 2px 0 rgb(0 0 0 / 0.05));
-                        }
-
-                        .dark .hackly-task-accordion--success > .fi-section {
-                            background-color: color-mix(in oklab, var(--success-950) 55%, var(--gray-900));
-                            box-shadow:
-                                var(--tw-ring-inset,) 0 0 0 1px color-mix(in oklab, var(--success-400) 35%, transparent),
-                                var(--tw-shadow, 0 1px 2px 0 rgb(0 0 0 / 0.05));
-                        }
-
-                        .dark .hackly-task-accordion--danger > .fi-section {
-                            background-color: color-mix(in oklab, var(--danger-950) 55%, var(--gray-900));
-                            box-shadow:
-                                var(--tw-ring-inset,) 0 0 0 1px color-mix(in oklab, var(--danger-400) 35%, transparent),
-                                var(--tw-shadow, 0 1px 2px 0 rgb(0 0 0 / 0.05));
-                        }
-                    </style>
-                    CSS),
+                fn (): HtmlString => new HtmlString(sprintf(
+                    '<link rel="stylesheet" href="%s?v=%s">',
+                    asset('css/hackly.css'),
+                    @filemtime(public_path('css/hackly.css')) ?: '1',
+                )),
+            )
+            ->renderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn (): View => view('filament.brand.login-footer'),
+            )
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_FOOTER,
+                fn (): View => view('filament.brand.sidebar-footer', [
+                    'missing' => ScannerHealth::missingCount(),
+                ]),
             )
             ->middleware([
                 EncryptCookies::class,

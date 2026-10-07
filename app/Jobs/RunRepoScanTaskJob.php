@@ -41,7 +41,8 @@ class RunRepoScanTaskJob implements ShouldQueue
             return;
         }
 
-        if ($task->status === ScanTaskStatus::Completed) {
+        // Finished (or cancelled → skipped) tasks never run again.
+        if ($task->status->isFinished() || $task->scan?->isCancelled()) {
             return;
         }
 

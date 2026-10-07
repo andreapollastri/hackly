@@ -2,21 +2,17 @@
 
 namespace App\Filament\Resources\Assets\RelationManagers;
 
-use App\Enums\FindingSeverity;
-use App\Enums\ScanProfile;
-use App\Enums\ScanStatus;
+use App\Filament\Actions\ScanRunActions;
+use App\Filament\Actions\StartTargetScanAction;
 use App\Filament\Resources\Scans\ScanResource;
+use App\Filament\Resources\Scans\Tables\ScanColumns;
+use App\Models\Asset;
 use App\Models\Scan;
-use Filament\Actions\Action;
-use Filament\Actions\ViewAction;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ViewColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class ScansRelationManager extends RelationManager
 {
@@ -24,76 +20,46 @@ class ScansRelationManager extends RelationManager
 
     protected static ?string $title = 'Scans';
 
-    public function form(Schema $schema): Schema
+    protected static string|\BackedEnum|null $icon = Heroicon::OutlinedQueueList;
+
+    public static function getBadge(Model $ownerRecord, string $pageClass): ?string
     {
-        return $schema->components([]);
+        return (string) $ownerRecord->scans()->count();
+    }
+
+    public static function getBadgeColor(Model $ownerRecord, string $pageClass): ?string
+    {
+        return 'gray';
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->defaultSort('created_at', 'desc')
-            ->poll('3s')
-            ->modifyQueryUsing(fn ($query) => $query
+            ->poll('5s')
+            ->modifyQueryUsing(fn (Builder $query) => $query
                 ->with(['tasks'])
-                ->withCount([
-                    'findings as high_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::High),
-                    'findings as medium_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Medium),
-                    'findings as low_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Low),
-                ]))
+                ->withCount(Scan::severityCountsForQuery()))
             ->recordUrl(fn (Scan $record): string => ScanResource::getUrl('view', ['record' => $record]))
-            ->columns([
-                TextColumn::make('id')
-                    ->label('UUID')
-                    ->copyable()
-                    ->limit(8)
-                    ->tooltip(fn (Scan $record) => $record->id)
-                    ->searchable(),
-                TextColumn::make('profile')
-                    ->badge()
-                    ->color('info'),
-                TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (ScanStatus $state): string => match ($state) {
-                        ScanStatus::Completed => 'success',
-                        ScanStatus::Running => 'warning',
-                        ScanStatus::Failed => 'danger',
-                        ScanStatus::Cancelled => 'gray',
-                        default => 'gray',
-                    }),
-                ViewColumn::make('progress')
-                    ->label('Progress')
-                    ->view('filament.tables.columns.scan-progress'),
-                ViewColumn::make('findings_summary')
-                    ->label('Findings')
-                    ->view('filament.tables.columns.scan-findings-summary')
-                    ->state(fn (Scan $record) => $record->findingsSeveritySummary()),
-                TextColumn::make('created_at')->since()->sortable()->label('Started'),
+            ->columns(ScanColumns::columns())
+            ->filters(ScanColumns::filters())
+            ->headerActions([
+                StartTargetScanAction::make('startScanFromRelation')
+                    ->record(fn (): Asset => $this->getOwnerRecord())
+                    ->visible(fn (): bool => $this->getOwnerRecord()->isVerified()),
             ])
-            ->filters([
-                SelectFilter::make('profile')->options(collect(ScanProfile::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
-                SelectFilter::make('status')->options(collect(ScanStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
-            ])
-            ->headerActions([])
             ->recordActions([
-                Action::make('exportPdf')
-                    ->label('PDF')
-                    ->icon(Heroicon::OutlinedDocumentArrowDown)
-                    ->color('gray')
-                    ->action(fn (Scan $record): StreamedResponse => ScanResource::downloadReport($record)),
-                Action::make('exportMarkdown')
-                    ->label('MD')
-                    ->icon(Heroicon::OutlinedDocumentText)
-                    ->color('gray')
-                    ->action(fn (Scan $record): StreamedResponse => ScanResource::downloadMarkdownReport($record)),
-                ViewAction::make()
-                    ->url(fn (Scan $record): string => ScanResource::getUrl('view', ['record' => $record])),
+                ScanRunActions::rowMenu(),
             ])
-            ->toolbarActions([]);
+            ->emptyStateIcon(Heroicon::OutlinedQueueList)
+            ->emptyStateHeading('Not scanned yet')
+            ->emptyStateDescription(fn (): string => $this->getOwnerRecord()->isVerified()
+                ? 'Start a quick scan to get a first picture in a few minutes.'
+                : 'Verify DNS ownership first — then scans can start.');
     }
 
     public function isReadOnly(): bool
     {
-        return true;
+        return false;
     }
 }

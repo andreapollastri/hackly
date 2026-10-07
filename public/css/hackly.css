@@ -1,0 +1,1217 @@
+/*
+ * Hackly panel styles.
+ * Plain CSS on top of Filament's design tokens (--primary-500, --gray-200, …) so no Node build is needed.
+ * Every class is prefixed with `hk-`.
+ */
+
+:root {
+    --hk-high: #dc2626;
+    --hk-high-bg: #fef2f2;
+    --hk-medium: #d97706;
+    --hk-medium-bg: #fffbeb;
+    --hk-low: #0284c7;
+    --hk-low-bg: #f0f9ff;
+    --hk-ok: #059669;
+    --hk-radius: 0.75rem;
+    --hk-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+    --hk-border: var(--gray-200);
+    --hk-surface: #fff;
+    --hk-subtle: var(--gray-50);
+    --hk-text: var(--gray-950);
+    --hk-muted: var(--gray-500);
+}
+
+.dark {
+    --hk-high: #f87171;
+    --hk-high-bg: color-mix(in oklab, #ef4444 14%, transparent);
+    --hk-medium: #fbbf24;
+    --hk-medium-bg: color-mix(in oklab, #f59e0b 14%, transparent);
+    --hk-low: #38bdf8;
+    --hk-low-bg: color-mix(in oklab, #0ea5e9 14%, transparent);
+    --hk-ok: #34d399;
+    --hk-border: color-mix(in oklab, white 10%, transparent);
+    --hk-surface: var(--gray-900);
+    --hk-subtle: color-mix(in oklab, white 4%, transparent);
+    --hk-text: #fff;
+    --hk-muted: var(--gray-400);
+}
+
+/* ------------------------------------------------------------------ Brand */
+
+.hk-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    height: 100%;
+}
+
+.hk-brand__mark {
+    height: 100%;
+    width: auto;
+    flex-shrink: 0;
+}
+
+.hk-brand__word {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    color: var(--hk-text);
+    line-height: 1;
+}
+
+.hk-brand__word span {
+    color: var(--primary-600);
+}
+
+.dark .hk-brand__word span {
+    color: var(--primary-400);
+}
+
+.fi-sidebar.fi-sidebar-collapsed .hk-brand__word,
+.fi-sidebar:not(.fi-sidebar-open) .hk-brand__word {
+    /* keep the mark visible when the desktop sidebar is collapsed */
+}
+
+/* Login / simple pages */
+.fi-simple-layout {
+    background:
+        radial-gradient(60rem 30rem at 10% -10%, color-mix(in oklab, var(--primary-500) 14%, transparent), transparent 60%),
+        radial-gradient(40rem 26rem at 110% 10%, color-mix(in oklab, var(--primary-400) 10%, transparent), transparent 60%),
+        var(--gray-50);
+}
+
+.dark .fi-simple-layout {
+    background:
+        radial-gradient(60rem 30rem at 10% -10%, color-mix(in oklab, var(--primary-500) 22%, transparent), transparent 60%),
+        var(--gray-950);
+}
+
+.fi-simple-main {
+    box-shadow: 0 20px 50px -20px rgb(15 23 42 / 0.25), 0 0 0 1px rgb(15 23 42 / 0.05);
+}
+
+.hk-auth-note {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    margin-top: 0.5rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 0.6rem;
+    background: var(--hk-subtle);
+    border: 1px solid var(--hk-border);
+    color: var(--hk-muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.hk-auth-note__icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+    color: var(--primary-500);
+    margin-top: 0.05rem;
+}
+
+/* Sidebar footer */
+.hk-sidebar-footer {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.75rem 1.25rem 1rem;
+    border-top: 1px solid var(--hk-border);
+    font-size: 0.75rem;
+}
+
+.hk-sidebar-footer__health {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--gray-600);
+    font-weight: 500;
+}
+
+.dark .hk-sidebar-footer__health {
+    color: var(--gray-300);
+}
+
+.hk-sidebar-footer__health:hover {
+    color: var(--primary-600);
+}
+
+.hk-sidebar-footer__legal {
+    color: var(--hk-muted);
+}
+
+.fi-sidebar:not(.fi-sidebar-open) .hk-sidebar-footer {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .fi-sidebar.fi-sidebar-open .hk-sidebar-footer {
+        display: grid;
+    }
+}
+
+/* ------------------------------------------------------------------ Primitives */
+
+.hk-muted {
+    color: var(--hk-muted);
+    font-size: 0.8125rem;
+}
+
+.hk-mono,
+.hk-mono * {
+    font-family: var(--hk-mono);
+}
+
+.hk-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary-600);
+}
+
+.dark .hk-eyebrow {
+    color: var(--primary-400);
+}
+
+.hk-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--gray-400);
+    flex-shrink: 0;
+}
+
+.hk-dot--ok {
+    background: var(--hk-ok);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--hk-ok) 20%, transparent);
+}
+
+.hk-dot--warn {
+    background: var(--hk-medium);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--hk-medium) 22%, transparent);
+}
+
+.hk-dot--bad {
+    background: var(--hk-high);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--hk-high) 18%, transparent);
+}
+
+.hk-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: color-mix(in oklab, var(--primary-500) 10%, transparent);
+    color: var(--primary-700);
+    white-space: nowrap;
+}
+
+.dark .hk-chip {
+    color: var(--primary-300);
+}
+
+.hk-chip--muted {
+    background: var(--hk-subtle);
+    color: var(--hk-muted);
+}
+
+.hk-chip__icon {
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+.hk-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--primary-600);
+}
+
+.dark .hk-link {
+    color: var(--primary-400);
+}
+
+.hk-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.hk-link__icon {
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+.hk-inline-link {
+    color: var(--primary-600);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.hk-alert {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.6rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    border: 1px solid transparent;
+}
+
+.hk-alert code {
+    font-family: var(--hk-mono);
+    font-size: 0.75rem;
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.3rem;
+    background: color-mix(in oklab, currentColor 10%, transparent);
+}
+
+.hk-alert__icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+}
+
+.hk-alert--danger {
+    background: var(--hk-high-bg);
+    color: var(--hk-high);
+    border-color: color-mix(in oklab, var(--hk-high) 25%, transparent);
+}
+
+.hk-alert--warning {
+    background: var(--hk-medium-bg);
+    color: color-mix(in oklab, var(--hk-medium) 75%, black);
+    border-color: color-mix(in oklab, var(--hk-medium) 30%, transparent);
+}
+
+.dark .hk-alert--warning {
+    color: var(--hk-medium);
+}
+
+.hk-alert--success {
+    background: color-mix(in oklab, var(--hk-ok) 9%, transparent);
+    color: color-mix(in oklab, var(--hk-ok) 80%, black);
+    border-color: color-mix(in oklab, var(--hk-ok) 25%, transparent);
+}
+
+.dark .hk-alert--success {
+    color: var(--hk-ok);
+}
+
+.hk-text-warn {
+    color: var(--hk-medium);
+    font-weight: 600;
+}
+
+.hk-text-danger {
+    color: var(--hk-high);
+    font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ Severity pills */
+
+.hk-sev {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.hk-sev__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    min-width: 2.4rem;
+    justify-content: center;
+    padding: 0.1rem 0.45rem;
+    border-radius: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35rem;
+}
+
+.hk-sev__letter {
+    font-size: 0.65rem;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.hk-sev__pill--high {
+    background: var(--hk-high-bg);
+    color: var(--hk-high);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hk-high) 22%, transparent);
+}
+
+.hk-sev__pill--medium {
+    background: var(--hk-medium-bg);
+    color: var(--hk-medium);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hk-medium) 25%, transparent);
+}
+
+.hk-sev__pill--low {
+    background: var(--hk-low-bg);
+    color: var(--hk-low);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hk-low) 22%, transparent);
+}
+
+.hk-sev__pill.is-zero {
+    background: transparent;
+    color: var(--gray-400);
+    box-shadow: inset 0 0 0 1px var(--hk-border);
+}
+
+.dark .hk-sev__pill.is-zero {
+    color: var(--gray-500);
+}
+
+.hk-sev__clean {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--hk-ok);
+}
+
+.hk-sev__clean-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+/* ------------------------------------------------------------------ Progress (tables) */
+
+.hk-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 9rem;
+}
+
+.hk-progress__bar {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+    min-width: 6rem;
+    height: 0.45rem;
+}
+
+.hk-progress__seg {
+    flex: 1;
+    border-radius: 2px;
+    background: var(--gray-200);
+}
+
+.dark .hk-progress__seg {
+    background: color-mix(in oklab, white 12%, transparent);
+}
+
+.hk-progress__seg--done {
+    background: var(--hk-ok);
+}
+
+.hk-progress__seg--failed {
+    background: var(--hk-high);
+}
+
+.hk-progress__seg--skipped {
+    background: color-mix(in oklab, var(--hk-medium) 55%, transparent);
+}
+
+.hk-progress__seg--running {
+    background: var(--info-500);
+    animation: hk-pulse 1.2s ease-in-out infinite;
+}
+
+.hk-progress__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--hk-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes hk-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+@keyframes hk-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Spin the "running" badge icon everywhere */
+.fi-badge.fi-color-info .fi-icon[data-hk-spin],
+.hk-status.is-live .hk-status__icon {
+    animation: hk-spin 1.4s linear infinite;
+}
+
+/* ------------------------------------------------------------------ Scan summary */
+
+.hk-scan-summary {
+    display: grid;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--hk-radius);
+    background: var(--hk-surface);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+    border: 1px solid var(--hk-border);
+}
+
+.hk-scan-summary__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 1.5rem;
+}
+
+.hk-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.8rem 0.35rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.hk-status__icon {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.hk-status--success { background: color-mix(in oklab, var(--hk-ok) 12%, transparent); color: var(--hk-ok); }
+.hk-status--danger { background: var(--hk-high-bg); color: var(--hk-high); }
+.hk-status--warning { background: var(--hk-medium-bg); color: var(--hk-medium); }
+.hk-status--info { background: color-mix(in oklab, var(--info-500) 12%, transparent); color: var(--info-600); }
+.hk-status--gray { background: var(--hk-subtle); color: var(--hk-muted); }
+.dark .hk-status--info { color: var(--info-400); }
+
+.hk-scan-summary__meter {
+    flex: 1;
+    min-width: 14rem;
+    display: grid;
+    gap: 0.35rem;
+}
+
+.hk-scan-summary__meter-label {
+    font-size: 0.75rem;
+    color: var(--hk-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.hk-meter {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--gray-100);
+    overflow: hidden;
+}
+
+.dark .hk-meter {
+    background: color-mix(in oklab, white 8%, transparent);
+}
+
+.hk-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary-500);
+    transition: width 400ms ease;
+}
+
+.hk-meter--success > span { background: var(--hk-ok); }
+.hk-meter--danger > span { background: var(--hk-high); }
+.hk-meter--warning > span { background: var(--hk-medium); }
+.hk-meter--info > span {
+    background: linear-gradient(90deg, var(--info-500), var(--primary-500));
+    background-size: 200% 100%;
+    animation: hk-shimmer 2s linear infinite;
+}
+
+@keyframes hk-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: 0 0; }
+}
+
+.hk-scan-summary__stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    background: var(--hk-border);
+    border: 1px solid var(--hk-border);
+}
+
+@media (min-width: 768px) {
+    .hk-scan-summary__stats {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .hk-scan-summary__stats {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+}
+
+.hk-kv {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--hk-surface);
+}
+
+.hk-kv dt {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--hk-muted);
+}
+
+.hk-kv dd {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--hk-text);
+}
+
+.hk-kv--high dd,
+.hk-kv--medium dd,
+.hk-kv--low dd {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.hk-kv--high dd { color: var(--hk-high); }
+.hk-kv--medium dd { color: var(--hk-medium); }
+.hk-kv--low dd { color: var(--hk-low); }
+
+/* ------------------------------------------------------------------ Task timeline */
+
+.hk-tasks {
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.hk-task {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.25rem 0.75rem;
+    padding: 0.8rem 0.25rem;
+    border-top: 1px solid var(--hk-border);
+}
+
+.hk-task:first-child {
+    border-top: 0;
+}
+
+@media (min-width: 768px) {
+    .hk-task {
+        grid-template-columns: 2rem minmax(0, 1fr) auto;
+        align-items: start;
+    }
+}
+
+.hk-task__status {
+    display: grid;
+    place-items: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 999px;
+    background: var(--hk-subtle);
+    color: var(--gray-400);
+}
+
+.hk-task__status-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.hk-task--completed .hk-task__status { background: color-mix(in oklab, var(--hk-ok) 12%, transparent); color: var(--hk-ok); }
+.hk-task--failed .hk-task__status { background: var(--hk-high-bg); color: var(--hk-high); }
+.hk-task--skipped .hk-task__status { background: var(--hk-medium-bg); color: var(--hk-medium); }
+.hk-task--running .hk-task__status { background: color-mix(in oklab, var(--info-500) 12%, transparent); color: var(--info-500); }
+.hk-task--running .hk-task__status-icon { animation: hk-spin 1.4s linear infinite; }
+
+.hk-task__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.6rem;
+}
+
+.hk-task__name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--hk-text);
+}
+
+.hk-task__tool {
+    font-family: var(--hk-mono);
+    font-size: 0.7rem;
+    color: var(--hk-muted);
+    padding: 0.05rem 0.4rem;
+    border-radius: 0.3rem;
+    background: var(--hk-subtle);
+    border: 1px solid var(--hk-border);
+}
+
+.hk-task__desc {
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: var(--hk-muted);
+}
+
+.hk-task__note {
+    margin-top: 0.45rem;
+    padding: 0.4rem 0.6rem;
+    font-family: var(--hk-mono);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    border-radius: 0.4rem;
+    background: var(--hk-medium-bg);
+    color: color-mix(in oklab, var(--hk-medium) 80%, black);
+    word-break: break-word;
+}
+
+.dark .hk-task__note { color: var(--hk-medium); }
+
+.hk-task__note--danger {
+    background: var(--hk-high-bg);
+    color: var(--hk-high);
+}
+
+.hk-task__meta {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    color: var(--hk-muted);
+}
+
+@media (min-width: 768px) {
+    .hk-task__meta {
+        grid-column: auto;
+        justify-content: flex-end;
+        padding-top: 0.15rem;
+    }
+}
+
+.hk-task__state {
+    font-weight: 600;
+}
+
+.hk-task--completed .hk-task__state { color: var(--hk-ok); }
+.hk-task--failed .hk-task__state { color: var(--hk-high); }
+.hk-task--skipped .hk-task__state { color: var(--hk-medium); }
+.hk-task--running .hk-task__state { color: var(--info-500); }
+
+.hk-task__time {
+    font-variant-numeric: tabular-nums;
+    min-width: 4.5rem;
+    text-align: right;
+}
+
+.hk-task--empty {
+    display: block;
+    color: var(--hk-muted);
+    font-size: 0.875rem;
+}
+
+/* ------------------------------------------------------------------ Verification */
+
+.hk-verify {
+    display: grid;
+    gap: 1rem;
+}
+
+.hk-steps {
+    display: grid;
+    gap: 1.1rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.hk-steps__item {
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    gap: 0.8rem;
+}
+
+.hk-steps__n {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary-700);
+    background: color-mix(in oklab, var(--primary-500) 14%, transparent);
+}
+
+.dark .hk-steps__n {
+    color: var(--primary-300);
+}
+
+.hk-steps__title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--hk-text);
+    padding-top: 0.2rem;
+}
+
+.hk-steps__text {
+    margin-top: 0.2rem;
+    font-size: 0.8125rem;
+    color: var(--hk-muted);
+    line-height: 1.5;
+}
+
+.hk-record {
+    margin-top: 0.6rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--hk-border);
+    overflow: hidden;
+    background: var(--hk-subtle);
+}
+
+.hk-record__row {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.7rem;
+    border-top: 1px solid var(--hk-border);
+}
+
+.hk-record__row:first-child {
+    border-top: 0;
+}
+
+.hk-record__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--hk-muted);
+}
+
+.hk-record__value {
+    font-family: var(--hk-mono);
+    font-size: 0.8rem;
+    color: var(--hk-text);
+    word-break: break-all;
+}
+
+.hk-record__hint {
+    padding: 0 0.7rem 0.55rem 7.95rem;
+    margin-top: -0.3rem;
+    font-size: 0.72rem;
+    color: var(--hk-muted);
+}
+
+@media (max-width: 640px) {
+    .hk-record__row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .hk-record__label {
+        grid-column: 1 / -1;
+    }
+
+    .hk-record__hint {
+        padding-left: 0.7rem;
+    }
+}
+
+.hk-copy {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.4rem;
+    color: var(--gray-700);
+    background: var(--hk-surface);
+    border: 1px solid var(--hk-border);
+    cursor: pointer;
+    transition: background 150ms, color 150ms;
+}
+
+.dark .hk-copy {
+    color: var(--gray-200);
+}
+
+.hk-copy:hover {
+    color: var(--primary-600);
+}
+
+.hk-copy.is-copied {
+    color: var(--hk-ok);
+    border-color: color-mix(in oklab, var(--hk-ok) 40%, transparent);
+}
+
+/* ------------------------------------------------------------------ Open issues card */
+
+.hk-issues {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.hk-issues__total {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.hk-issues__number {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--hk-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.hk-issues__label {
+    font-size: 0.8125rem;
+    color: var(--hk-muted);
+}
+
+.hk-issues__list {
+    display: grid;
+    gap: 0.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.hk-issues__row {
+    display: grid;
+    grid-template-columns: 0.6rem 1fr auto;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--hk-text);
+    transition: background 150ms;
+}
+
+.hk-issues__row:hover {
+    background: var(--hk-subtle);
+}
+
+.hk-issues__dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 0.2rem;
+}
+
+.hk-issues__row--high .hk-issues__dot { background: var(--hk-high); }
+.hk-issues__row--medium .hk-issues__dot { background: var(--hk-medium); }
+.hk-issues__row--low .hk-issues__dot { background: var(--hk-low); }
+
+.hk-issues__count {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ Onboarding */
+
+.hk-onboarding {
+    position: relative;
+    display: grid;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    border-radius: var(--hk-radius);
+    border: 1px solid color-mix(in oklab, var(--primary-500) 25%, var(--hk-border));
+    background:
+        radial-gradient(40rem 14rem at 0% 0%, color-mix(in oklab, var(--primary-500) 10%, transparent), transparent 70%),
+        var(--hk-surface);
+    overflow: hidden;
+}
+
+.hk-onboarding__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.hk-onboarding__title {
+    margin-top: 0.25rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--hk-text);
+}
+
+.hk-onboarding__lead {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--hk-muted);
+}
+
+.hk-onboarding__ring {
+    --hk-ring: 0;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 999px;
+    background: conic-gradient(var(--primary-500) calc(var(--hk-ring) * 1%), var(--gray-200) 0);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--hk-text);
+}
+
+.dark .hk-onboarding__ring {
+    background: conic-gradient(var(--primary-400) calc(var(--hk-ring) * 1%), color-mix(in oklab, white 12%, transparent) 0);
+}
+
+.hk-onboarding__ring span {
+    display: grid;
+    place-items: center;
+    width: 2.8rem;
+    height: 2.8rem;
+    border-radius: 999px;
+    background: var(--hk-surface);
+}
+
+.hk-onboarding__steps {
+    display: grid;
+    gap: 0.75rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.hk-onboarding__step {
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    gap: 0.7rem;
+    padding: 0.9rem;
+    border-radius: 0.65rem;
+    background: var(--hk-surface);
+    border: 1px solid var(--hk-border);
+}
+
+.hk-onboarding__step.is-done {
+    background: var(--hk-subtle);
+}
+
+.hk-onboarding__check {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary-700);
+    border: 1.5px solid color-mix(in oklab, var(--primary-500) 45%, transparent);
+}
+
+.dark .hk-onboarding__check {
+    color: var(--primary-300);
+}
+
+.hk-onboarding__check svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.is-done .hk-onboarding__check {
+    background: var(--hk-ok);
+    border-color: var(--hk-ok);
+    color: #fff;
+}
+
+.hk-onboarding__step-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--hk-text);
+}
+
+.is-done .hk-onboarding__step-title {
+    color: var(--hk-muted);
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in oklab, var(--hk-muted) 50%, transparent);
+}
+
+.hk-onboarding__step-text {
+    margin: 0.15rem 0 0.45rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--hk-muted);
+}
+
+.hk-onboarding__health:hover {
+    filter: brightness(0.98);
+}
+
+/* ------------------------------------------------------------------ Scanner health */
+
+.hk-health {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.hk-health__grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+    .hk-health__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.hk-bin-list {
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.hk-bin {
+    display: grid;
+    grid-template-columns: 0.5rem minmax(0, 1fr) auto;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.7rem 0;
+    border-top: 1px solid var(--hk-border);
+}
+
+.hk-bin:first-child {
+    border-top: 0;
+    padding-top: 0.2rem;
+}
+
+.hk-bin__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem 0.6rem;
+}
+
+.hk-bin__name {
+    font-family: var(--hk-mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--hk-text);
+}
+
+.hk-bin__used {
+    font-size: 0.75rem;
+    color: var(--hk-muted);
+}
+
+.hk-bin__path {
+    display: block;
+    margin-top: 0.15rem;
+    font-family: var(--hk-mono);
+    font-size: 0.72rem;
+    color: var(--hk-muted);
+    word-break: break-all;
+}
+
+.hk-bin__hint {
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    color: var(--hk-high);
+}
+
+.hk-bin__state {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    color: var(--hk-high);
+    background: var(--hk-high-bg);
+}
+
+.hk-bin__state.is-ok {
+    color: var(--hk-ok);
+    background: color-mix(in oklab, var(--hk-ok) 12%, transparent);
+}
+
+.hk-facts {
+    display: grid;
+    margin: 0;
+}
+
+.hk-facts > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 0;
+    border-top: 1px solid var(--hk-border);
+    font-size: 0.8125rem;
+}
+
+.hk-facts > div:first-child {
+    border-top: 0;
+    padding-top: 0.1rem;
+}
+
+.hk-facts dt {
+    color: var(--hk-muted);
+}
+
+.hk-facts dd {
+    font-weight: 600;
+    color: var(--hk-text);
+    text-align: right;
+}
+
+.hk-facts code {
+    font-family: var(--hk-mono);
+    font-size: 0.75rem;
+}
+
+/* ------------------------------------------------------------------ Filament tweaks */
+
+/* Mono IDs and evidence feel tighter with the system mono stack */
+.fi-font-mono {
+    font-family: var(--hk-mono);
+}
+
+/* Slightly calmer page headings */
+.fi-header-heading {
+    letter-spacing: -0.025em;
+}
+
+.fi-header-subheading {
+    max-width: 52rem;
+}
+
+/* Stats cards: give the value more presence */
+.fi-wi-stats-overview-stat-value {
+    letter-spacing: -0.03em;
+}
+
+.dark .hk-brand__mark {
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.14);
+}

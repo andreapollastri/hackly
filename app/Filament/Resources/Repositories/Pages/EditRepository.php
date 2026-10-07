@@ -17,6 +17,11 @@ class EditRepository extends EditRecord
         ];
     }
 
+    protected function getRedirectUrl(): string
+    {
+        return RepositoryResource::getUrl('view', ['record' => $this->getRecord()]);
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>

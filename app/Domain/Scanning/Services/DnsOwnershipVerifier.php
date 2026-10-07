@@ -23,6 +23,17 @@ class DnsOwnershipVerifier
         return $token;
     }
 
+    /**
+     * Return the current token, issuing one only if the target has none yet.
+     * Re-opening the verification dialog must not invalidate a record the user already published.
+     */
+    public function ensureToken(Asset $asset): string
+    {
+        $token = trim((string) $asset->verification_token);
+
+        return $token !== '' ? $token : $this->issueToken($asset);
+    }
+
     public function verify(Asset $asset): bool
     {
         $token = trim((string) $asset->verification_token);

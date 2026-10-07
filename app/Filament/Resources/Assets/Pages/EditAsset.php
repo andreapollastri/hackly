@@ -19,6 +19,11 @@ class EditAsset extends EditRecord
         ];
     }
 
+    protected function getRedirectUrl(): string
+    {
+        return AssetResource::getUrl('view', ['record' => $this->getRecord()]);
+    }
+
     protected function afterSave(): void
     {
         /** @var Asset $record */

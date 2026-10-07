@@ -31,7 +31,7 @@ class PrepareRepoScanJob implements ShouldQueue
     {
         $scan = RepoScan::query()->with('repository.credential')->find($this->repoScanId);
 
-        if (! $scan || ! $scan->repository) {
+        if (! $scan || ! $scan->repository || $scan->isCancelled()) {
             return;
         }
 

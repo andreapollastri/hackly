@@ -2,33 +2,40 @@
 
 namespace App\Filament\Resources\Assets;
 
-use App\Domain\Scanning\Services\DnsOwnershipVerifier;
-use App\Domain\Scanning\Services\ScanDispatcher;
 use App\Enums\AssetStatus;
-use App\Enums\ScanProfile;
-use App\Enums\ScanTaskStatus;
+use App\Enums\FindingSeverity;
+use App\Filament\Actions\StartTargetScanAction;
+use App\Filament\Actions\TargetActions;
 use App\Filament\Resources\Assets\Pages\EditAsset;
 use App\Filament\Resources\Assets\Pages\ListAssets;
 use App\Filament\Resources\Assets\Pages\ViewAsset;
+use App\Filament\Resources\Assets\RelationManagers\FindingsRelationManager;
 use App\Filament\Resources\Assets\RelationManagers\RepositoriesRelationManager;
 use App\Filament\Resources\Assets\RelationManagers\ScansRelationManager;
+use App\Filament\Resources\Scans\ScanResource;
+use App\Filament\Support\NavigationGroup;
 use App\Models\Asset;
 use BackedEnum;
-use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Notifications\Notification;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ToggleColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use UnitEnum;
 
 class AssetResource extends Resource
 {
@@ -36,15 +43,46 @@ class AssetResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;
 
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::AttackSurface;
+
     protected static ?string $navigationLabel = 'Targets';
 
-    protected static ?string $modelLabel = 'Target';
+    protected static ?string $modelLabel = 'target';
 
-    protected static ?string $pluralModelLabel = 'Targets';
+    protected static ?string $pluralModelLabel = 'targets';
 
     protected static ?string $slug = 'targets';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
+
+    protected static ?string $recordTitleAttribute = 'value';
+
+    public static function getNavigationBadge(): ?string
+    {
+        $pending = once(fn (): int => Asset::query()->whereNull('verified_at')->count());
+
+        return $pending > 0 ? (string) $pending : null;
+    }
+
+    public static function getNavigationBadgeColor(): string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Targets waiting for DNS verification';
+    }
+
+    /**
+     * @param  Asset  $record
+     */
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Ownership' => $record->isVerified() ? 'Verified' : 'Not verified',
+        ];
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -53,197 +91,184 @@ class AssetResource extends Resource
             ->components([
                 TextInput::make('value')
                     ->label('Domain')
+                    ->placeholder('example.com')
+                    ->prefixIcon(Heroicon::OutlinedGlobeAlt)
                     ->required()
-                    ->maxLength(255)
+                    ->maxLength(253)
                     ->unique(ignoreRecord: true)
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('value', static::normalizeDomain((string) $state)))
+                    ->dehydrateStateUsing(fn (?string $state): string => static::normalizeDomain((string) $state))
+                    ->rule('regex:/^(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}\.?$/i')
+                    ->validationMessages([
+                        'regex' => 'Enter a domain name such as example.com — no scheme, path or IP address.',
+                    ])
                     ->disabled(fn (?Asset $record): bool => (bool) $record?->isVerified())
-                    ->helperText(fn (?Asset $record): ?string => $record?->isVerified()
+                    ->helperText(fn (?Asset $record): string => $record?->isVerified()
                         ? 'Locked after verification. Create a new target to scan a different domain.'
-                        : 'FQDN only (e.g. example.com). Resolved A/AAAA IPs are checked and scanned with the domain.'),
+                        : 'A domain or subdomain you control. Its A/AAAA addresses are resolved and checked at scan time.'),
+                Textarea::make('authorization_note')
+                    ->label('Authorization reference')
+                    ->placeholder('e.g. Pentest agreement #2026-14, owner: security@example.com')
+                    ->rows(2)
+                    ->maxLength(1000)
+                    ->helperText('Optional. Where the permission to test this target is documented.'),
             ]);
+    }
+
+    public static function normalizeDomain(string $value): string
+    {
+        $value = strtolower(trim($value));
+        $value = (string) preg_replace('#^[a-z][a-z0-9+.-]*://#', '', $value);
+        $value = explode('/', $value, 2)[0];
+        $value = explode('?', $value, 2)[0];
+        $value = (string) preg_replace('/:\d+$/', '', $value);
+
+        return rtrim($value, '.');
     }
 
     public static function infolist(Schema $schema): Schema
     {
-        return $schema->components([
-            TextEntry::make('value')->label('Domain')->size('lg')->weight('bold'),
-            TextEntry::make('status')->badge(),
-            TextEntry::make('verified_at')
-                ->label('DNS verified')
-                ->dateTime()
-                ->placeholder('Not verified')
-                ->color(fn ($state) => $state ? 'success' : 'danger'),
-        ]);
+        return $schema
+            ->columns(['default' => 1, 'lg' => 3])
+            ->components([
+                Section::make('Verify ownership to unlock scanning')
+                    ->description('Hackly only scans domains you prove you control, by publishing a DNS TXT record.')
+                    ->icon(Heroicon::OutlinedShieldExclamation)
+                    ->iconColor('warning')
+                    ->columnSpanFull()
+                    ->visible(fn (Asset $record): bool => ! $record->isVerified())
+                    ->headerActions([
+                        TargetActions::verify()->label('Check DNS'),
+                    ])
+                    ->schema([
+                        ViewEntry::make('verification')
+                            ->hiddenLabel()
+                            ->view('filament.targets.verification-entry'),
+                    ]),
+                Section::make('Overview')
+                    ->icon(Heroicon::OutlinedGlobeAlt)
+                    ->columnSpan(['lg' => 2])
+                    ->columns(['default' => 1, 'sm' => 2])
+                    ->schema([
+                        TextEntry::make('verified_at')
+                            ->label('Ownership')
+                            ->badge()
+                            ->state(fn (Asset $record): string => $record->isVerified() ? 'Verified' : 'Not verified')
+                            ->color(fn (Asset $record): string => $record->isVerified() ? 'success' : 'warning')
+                            ->icon(fn (Asset $record): Heroicon => $record->isVerified() ? Heroicon::OutlinedShieldCheck : Heroicon::OutlinedShieldExclamation)
+                            ->helperText(fn (Asset $record): ?string => $record->verified_at ? 'via DNS TXT · '.$record->verified_at->diffForHumans() : null),
+                        TextEntry::make('status')
+                            ->badge()
+                            ->helperText(fn (Asset $record): ?string => $record->isActive() ? null : 'Paused targets are kept but you should not scan them.'),
+                        TextEntry::make('latestScan.created_at')
+                            ->label('Last scan')
+                            ->since()
+                            ->dateTimeTooltip()
+                            ->placeholder('Never scanned')
+                            ->url(fn (Asset $record): ?string => $record->latestScan ? ScanResource::getUrl('view', ['record' => $record->latestScan]) : null),
+                        TextEntry::make('latestScan.status')
+                            ->label('Last result')
+                            ->badge()
+                            ->placeholder('—'),
+                        TextEntry::make('authorization_note')
+                            ->label('Authorization reference')
+                            ->placeholder('Not documented')
+                            ->columnSpanFull(),
+                    ]),
+                Section::make('Open issues')
+                    ->icon(Heroicon::OutlinedBugAnt)
+                    ->columnSpan(['lg' => 1])
+                    ->schema([
+                        ViewEntry::make('open_issues')
+                            ->hiddenLabel()
+                            ->view('filament.partials.open-issues-entry'),
+                    ]),
+            ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->with('latestScan')
+                ->withCount([
+                    'repositories',
+                    'findings as high_findings_count' => fn ($q) => $q->issues()->open()->where('severity', FindingSeverity::High),
+                    'findings as medium_findings_count' => fn ($q) => $q->issues()->open()->where('severity', FindingSeverity::Medium),
+                    'findings as low_findings_count' => fn ($q) => $q->issues()->open()->where('severity', FindingSeverity::Low),
+                ]))
+            ->defaultSort('value')
             ->recordUrl(fn (Asset $record): string => static::getUrl('view', ['record' => $record]))
             ->columns([
                 TextColumn::make('value')
                     ->label('Domain')
                     ->searchable()
                     ->sortable()
-                    ->weight('medium'),
-                IconColumn::make('verified_at')
-                    ->label('Verified')
-                    ->boolean()
-                    ->getStateUsing(fn (Asset $record) => $record->isVerified())
-                    ->trueIcon(Heroicon::OutlinedShieldCheck)
-                    ->falseIcon(Heroicon::OutlinedShieldExclamation)
-                    ->trueColor('success')
-                    ->falseColor('danger'),
-                ToggleColumn::make('status')
-                    ->label('Active')
-                    ->onColor('success')
-                    ->offColor('gray')
-                    ->getStateUsing(fn (Asset $record): bool => $record->status === AssetStatus::Active)
-                    ->updateStateUsing(function (Asset $record, mixed $state): bool {
-                        $record->update([
-                            'status' => $state ? AssetStatus::Active : AssetStatus::Paused,
-                        ]);
-
-                        return (bool) $state;
-                    }),
-                TextColumn::make('scans_count')
-                    ->counts('scans')
-                    ->label('Scans'),
-                TextColumn::make('updated_at')->since()->label('Updated'),
+                    ->weight('semibold')
+                    ->description(fn (Asset $record): ?string => $record->repositories_count > 0
+                        ? $record->repositories_count.' linked '.str('repository')->plural($record->repositories_count)
+                        : null),
+                TextColumn::make('verified_at')
+                    ->label('Ownership')
+                    ->badge()
+                    ->state(fn (Asset $record): string => $record->isVerified() ? 'Verified' : 'Pending')
+                    ->color(fn (Asset $record): string => $record->isVerified() ? 'success' : 'warning')
+                    ->icon(fn (Asset $record): Heroicon => $record->isVerified() ? Heroicon::OutlinedShieldCheck : Heroicon::OutlinedShieldExclamation)
+                    ->sortable(),
+                TextColumn::make('status')
+                    ->badge()
+                    ->sortable(),
+                ViewColumn::make('open_issues')
+                    ->label('Open issues')
+                    ->view('filament.tables.columns.scan-findings-summary')
+                    ->state(fn (Asset $record): ?array => $record->latestScan === null ? null : [
+                        'high' => (int) $record->high_findings_count,
+                        'medium' => (int) $record->medium_findings_count,
+                        'low' => (int) $record->low_findings_count,
+                    ]),
+                TextColumn::make('latestScan.created_at')
+                    ->label('Last scan')
+                    ->since()
+                    ->dateTimeTooltip()
+                    ->placeholder('Never')
+                    ->color('gray'),
             ])
             ->filters([
-                SelectFilter::make('status')->options([
-                    AssetStatus::Active->value => 'Active',
-                    AssetStatus::Paused->value => 'Disabled',
-                ]),
+                TernaryFilter::make('verified_at')
+                    ->label('Ownership')
+                    ->nullable()
+                    ->trueLabel('Verified')
+                    ->falseLabel('Pending verification'),
+                SelectFilter::make('status')
+                    ->options(AssetStatus::class),
             ])
             ->recordActions([
-                Action::make('issueToken')
-                    ->label('DNS token')
-                    ->icon(Heroicon::OutlinedKey)
-                    ->color('gray')
-                    ->visible(fn (Asset $record) => ! $record->isVerified())
-                    ->modalHeading('Publish this TXT record')
-                    ->modalDescription('Add this DNS TXT record at your registrar or DNS provider. Wait for propagation, then click Verify DNS.')
-                    ->modalWidth(Width::Medium)
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Done')
-                    ->mountUsing(function (Action $action, ?Schema $schema, Asset $record): void {
-                        try {
-                            $token = app(DnsOwnershipVerifier::class)->issueToken($record);
-
-                            $schema?->fill([
-                                'host' => $record->value,
-                                'type' => 'TXT',
-                                'value' => $token,
-                            ]);
-                        } catch (\Throwable $e) {
-                            Notification::make()
-                                ->title('Cannot issue token')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-
-                            $action->halt();
-                        }
-                    })
-                    ->form([
-                        TextInput::make('host')
-                            ->label('Host')
-                            ->readOnly()
-                            ->copyable(),
-                        TextInput::make('type')
-                            ->label('Type')
-                            ->readOnly()
-                            ->copyable(),
-                        TextInput::make('value')
-                            ->label('Value')
-                            ->readOnly()
-                            ->copyable(),
-                    ]),
-                Action::make('verifyDns')
-                    ->label('Verify DNS')
-                    ->icon(Heroicon::OutlinedShieldCheck)
-                    ->color('success')
-                    ->visible(fn (Asset $record) => ! $record->isVerified())
-                    ->action(function (Asset $record) {
-                        try {
-                            app(DnsOwnershipVerifier::class)->verify($record);
-
-                            Notification::make()
-                                ->title('Target verified')
-                                ->body('DNS TXT ownership confirmed. You can start scans.')
-                                ->success()
-                                ->send();
-                        } catch (\Throwable $e) {
-                            Notification::make()
-                                ->title('Verification failed')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->persistent()
-                                ->send();
-                        }
-                    }),
-                Action::make('startScan')
-                    ->label('Start scan')
-                    ->icon(Heroicon::OutlinedPlay)
-                    ->color('primary')
-                    ->disabled(fn (Asset $record) => ! $record->isVerified())
-                    ->tooltip(fn (Asset $record) => $record->isVerified()
-                        ? 'Dispatch scan jobs now'
-                        : 'Verify DNS ownership first')
-                    ->form([
-                        Select::make('profile')
-                            ->options([
-                                ScanProfile::Quick->value => 'Quick — DNS + mail + ports',
-                                ScanProfile::Standard->value => 'Standard — + subdomains, paths, Nuclei',
-                                ScanProfile::Deep->value => 'Deep — + ZAP baseline',
-                            ])
-                            ->default(ScanProfile::Standard->value)
-                            ->required()
-                            ->native(false),
-                        Toggle::make('include_repos')
-                            ->label('Include linked repositories')
-                            ->helperText('Also run repo SAST/SCA scans for every GitHub repo linked to this target.')
-                            ->default(false)
-                            ->visible(fn (Asset $record): bool => $record->repositories()->exists()),
-                    ])
-                    ->action(function (Asset $record, array $data) {
-                        try {
-                            $result = app(ScanDispatcher::class)->createScan(
-                                $record,
-                                ScanProfile::from($data['profile']),
-                                auth()->user(),
-                                includeLinkedRepos: (bool) ($data['include_repos'] ?? false),
-                            );
-
-                            $scan = $result['scan'];
-                            $queued = $scan->tasks->where('status', ScanTaskStatus::Queued)->count();
-                            $repoCount = count($result['linked_repo_scans']);
-
-                            Notification::make()
-                                ->title("Scan {$scan->id} started")
-                                ->body($repoCount > 0
-                                    ? "{$queued} target task(s) + {$repoCount} linked repo scan(s) queued."
-                                    : "{$queued} task(s) dispatched to the queue. Watch progress under Scans.")
-                                ->success()
-                                ->send();
-                        } catch (\Throwable $e) {
-                            Notification::make()
-                                ->title('Cannot start scan')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
-            ]);
+                TargetActions::verify()->button()->size('sm'),
+                StartTargetScanAction::make()
+                    ->button()
+                    ->size('sm')
+                    ->outlined()
+                    ->visible(fn (Asset $record): bool => $record->isVerified()),
+                ActionGroup::make([
+                    EditAction::make(),
+                    TargetActions::toggleStatus(),
+                    TargetActions::regenerateToken(),
+                    DeleteAction::make(),
+                ])->tooltip('More'),
+            ])
+            ->emptyStateIcon(Heroicon::OutlinedGlobeAlt)
+            ->emptyStateActions([ListAssets::createAction()])
+            ->emptyStateHeading('Add your first target')
+            ->emptyStateDescription('A target is a domain you own. After a quick DNS ownership check you can run attack-surface scans against it.');
     }
 
     public static function getRelations(): array
     {
         return [
-            RepositoriesRelationManager::class,
+            FindingsRelationManager::class,
             ScansRelationManager::class,
+            RepositoriesRelationManager::class,
         ];
     }
 

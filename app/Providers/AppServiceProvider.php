@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Domain\RepoScanning\Scanners\CheckovScanner;
 use App\Domain\RepoScanning\Scanners\ComposerOsvScanner;
+use App\Domain\RepoScanning\Scanners\ComposerOutdatedScanner;
 use App\Domain\RepoScanning\Scanners\GitleaksScanner;
 use App\Domain\RepoScanning\Scanners\LaravelLivePentestScanner;
 use App\Domain\RepoScanning\Scanners\LaravelPhpAuditScanner;
@@ -71,6 +72,7 @@ class AppServiceProvider extends ServiceProvider
                 new GitleaksScanner,
                 new CheckovScanner,
                 new ComposerOsvScanner,
+                new ComposerOutdatedScanner,
                 new LaravelPhpAuditScanner,
                 new LaravelLivePentestScanner,
             ]);

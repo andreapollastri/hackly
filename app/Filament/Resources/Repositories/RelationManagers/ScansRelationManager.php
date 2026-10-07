@@ -2,98 +2,61 @@
 
 namespace App\Filament\Resources\Repositories\RelationManagers;
 
-use App\Enums\FindingSeverity;
-use App\Enums\ScanProfile;
-use App\Enums\ScanStatus;
+use App\Filament\Actions\ScanRunActions;
+use App\Filament\Actions\StartRepositoryScanAction;
 use App\Filament\Resources\RepoScans\RepoScanResource;
+use App\Filament\Resources\Scans\Tables\ScanColumns;
 use App\Models\RepoScan;
-use Filament\Actions\Action;
-use Filament\Actions\ViewAction;
+use App\Models\Repository;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ViewColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class ScansRelationManager extends RelationManager
 {
     protected static string $relationship = 'scans';
 
-    protected static ?string $title = 'Repo scans';
+    protected static ?string $title = 'Scans';
 
-    public function form(Schema $schema): Schema
+    protected static string|\BackedEnum|null $icon = Heroicon::OutlinedQueueList;
+
+    public static function getBadge(Model $ownerRecord, string $pageClass): ?string
     {
-        return $schema->components([]);
+        return (string) $ownerRecord->scans()->count();
+    }
+
+    public static function getBadgeColor(Model $ownerRecord, string $pageClass): ?string
+    {
+        return 'gray';
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->defaultSort('created_at', 'desc')
-            ->poll('3s')
-            ->modifyQueryUsing(fn ($query) => $query
+            ->poll('5s')
+            ->modifyQueryUsing(fn (Builder $query) => $query
                 ->with(['tasks'])
-                ->withCount([
-                    'findings as high_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::High)->whereNotIn('category', ['passed', 'scan_diff']),
-                    'findings as medium_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Medium)->whereNotIn('category', ['passed', 'scan_diff']),
-                    'findings as low_findings_count' => fn ($q) => $q->where('severity', FindingSeverity::Low)->whereNotIn('category', ['passed', 'scan_diff']),
-                ]))
+                ->withCount(RepoScan::severityCountsForQuery()))
             ->recordUrl(fn (RepoScan $record): string => RepoScanResource::getUrl('view', ['record' => $record]))
-            ->columns([
-                TextColumn::make('id')
-                    ->label('UUID')
-                    ->copyable()
-                    ->limit(8)
-                    ->tooltip(fn (RepoScan $record) => $record->id)
-                    ->searchable(),
-                TextColumn::make('profile')
-                    ->badge()
-                    ->color('info'),
-                TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (ScanStatus $state): string => match ($state) {
-                        ScanStatus::Completed => 'success',
-                        ScanStatus::Running => 'warning',
-                        ScanStatus::Failed => 'danger',
-                        ScanStatus::Cancelled => 'gray',
-                        default => 'gray',
-                    }),
-                ViewColumn::make('progress')
-                    ->label('Progress')
-                    ->view('filament.tables.columns.scan-progress'),
-                ViewColumn::make('findings_summary')
-                    ->label('Findings')
-                    ->view('filament.tables.columns.scan-findings-summary')
-                    ->state(fn (RepoScan $record) => $record->findingsSeveritySummary()),
-                TextColumn::make('created_at')->since()->sortable()->label('Started'),
+            ->columns(ScanColumns::columns())
+            ->filters(ScanColumns::filters())
+            ->headerActions([
+                StartRepositoryScanAction::make('startScanFromRelation')
+                    ->record(fn (): Repository => $this->getOwnerRecord()),
             ])
-            ->filters([
-                SelectFilter::make('profile')->options(collect(ScanProfile::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
-                SelectFilter::make('status')->options(collect(ScanStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])),
-            ])
-            ->headerActions([])
             ->recordActions([
-                Action::make('exportPdf')
-                    ->label('PDF')
-                    ->icon(Heroicon::OutlinedDocumentArrowDown)
-                    ->color('gray')
-                    ->action(fn (RepoScan $record): StreamedResponse => RepoScanResource::downloadReport($record)),
-                Action::make('exportMarkdown')
-                    ->label('MD')
-                    ->icon(Heroicon::OutlinedDocumentText)
-                    ->color('gray')
-                    ->action(fn (RepoScan $record): StreamedResponse => RepoScanResource::downloadMarkdownReport($record)),
-                ViewAction::make()
-                    ->url(fn (RepoScan $record): string => RepoScanResource::getUrl('view', ['record' => $record])),
+                ScanRunActions::rowMenu(),
             ])
-            ->toolbarActions([]);
+            ->emptyStateIcon(Heroicon::OutlinedQueueList)
+            ->emptyStateHeading('Not scanned yet')
+            ->emptyStateDescription('Run a quick scan for secrets and vulnerable dependencies — it only takes a minute.');
     }
 
     public function isReadOnly(): bool
     {
-        return true;
+        return false;
     }
 }

@@ -6,38 +6,32 @@
         ? $scan->tasks->sortBy('sort_order')->values()
         : $scan->tasks()->orderBy('sort_order')->get();
 
-    $dotKey = $tasks->map(fn ($task) => $task->status->value)->implode('-');
-
-    $styles = [
-        'idle' => 'width:10px;height:10px;border-radius:9999px;box-sizing:border-box;border:2px solid #94a3b8;background:transparent;',
-        'running' => 'width:10px;height:10px;border-radius:9999px;box-sizing:border-box;border:2px solid #f59e0b;background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,0.22);',
-        'done' => 'width:10px;height:10px;border-radius:9999px;box-sizing:border-box;border:2px solid #10b981;background:#10b981;',
-        'failed' => 'width:10px;height:10px;border-radius:9999px;box-sizing:border-box;border:2px solid #f43f5e;background:#f43f5e;',
-    ];
+    $total = $tasks->count();
+    $done = $tasks->filter(fn ($task) => $task->status->isFinished())->count();
+    $key = $tasks->map(fn ($task) => $task->status->value)->implode('-');
 @endphp
 
-<div
-    style="display:flex;align-items:center;gap:6px;"
-    wire:key="scan-progress-{{ $scan->id }}-{{ $dotKey }}"
-    title="{{ $tasks->map(fn ($task) => ($task->type->value ?? 'task').': '.$task->status->value)->implode(' · ') }}"
->
-    @forelse ($tasks as $task)
-        @php
-            $tone = match ($task->status) {
-                ScanTaskStatus::Completed => 'done',
-                ScanTaskStatus::Failed => 'failed',
-                ScanTaskStatus::Running => 'running',
-                default => 'idle',
-            };
-            $typeLabel = method_exists($task->type, 'label')
-                ? $task->type->label()
-                : ($task->type->value ?? 'task');
-        @endphp
-        <span
-            style="display:inline-block;{{ $styles[$tone] }}"
-            title="{{ $typeLabel }} · {{ $task->status->value }}"
-        ></span>
-    @empty
-        <span style="font-size:12px;color:#94a3b8;">—</span>
-    @endforelse
+<div class="hk-progress" wire:key="scan-progress-{{ $scan->id }}-{{ $key }}">
+    @if ($total === 0)
+        <span class="hk-muted">—</span>
+    @else
+        <div class="hk-progress__bar" role="img" aria-label="{{ $done }} of {{ $total }} tasks finished">
+            @foreach ($tasks as $task)
+                @php
+                    $tone = match ($task->status) {
+                        ScanTaskStatus::Completed => 'done',
+                        ScanTaskStatus::Failed => 'failed',
+                        ScanTaskStatus::Skipped => 'skipped',
+                        ScanTaskStatus::Running => 'running',
+                        default => 'idle',
+                    };
+                @endphp
+                <span
+                    class="hk-progress__seg hk-progress__seg--{{ $tone }}"
+                    title="{{ $task->type->getLabel() }} · {{ $task->status->getLabel() }}"
+                ></span>
+            @endforeach
+        </div>
+        <span class="hk-progress__label">{{ $done }}/{{ $total }}</span>
+    @endif
 </div>
