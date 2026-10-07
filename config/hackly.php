@@ -33,7 +33,7 @@ return [
         'nuclei' => env('HACKLY_NUCLEI', 'nuclei'),
         'zap' => env(
             'HACKLY_ZAP',
-            is_executable('/Applications/ZAP.app/Contents/Java/zap.sh')
+            PHP_OS_FAMILY === 'Darwin' && is_executable('/Applications/ZAP.app/Contents/Java/zap.sh')
                 ? '/Applications/ZAP.app/Contents/Java/zap.sh'
                 : 'zap.sh'
         ),

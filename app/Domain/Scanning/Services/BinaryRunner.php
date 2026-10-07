@@ -164,16 +164,50 @@ class BinaryRunner
 
     private function isUsableBinary(string $path): bool
     {
-        if ($path === '' || is_dir($path)) {
+        if ($path === '') {
             return false;
         }
 
-        // Broken symlink
-        if (is_link($path) && ! file_exists($path)) {
-            return false;
+        $info = $this->inspectPath($path);
+
+        // `file` follows symlinks, so directories and broken symlinks both fail here.
+        return $info['file'] && $info['executable'];
+    }
+
+    /**
+     * PHP-FPM pools often set open_basedir (e.g. /home/<user>/:/tmp/), and stat()
+     * calls on /usr/bin & co. then raise warnings Laravel turns into exceptions.
+     * Child processes are not bound by open_basedir, so probe through the shell.
+     *
+     * @return array{exists: bool, link: bool, file: bool, executable: bool, target: ?string, real: ?string}
+     */
+    private function inspectPath(string $path): array
+    {
+        if ((string) ini_get('open_basedir') === '') {
+            return [
+                'exists' => file_exists($path),
+                'link' => is_link($path),
+                'file' => is_file($path),
+                'executable' => is_executable($path),
+                'target' => is_link($path) ? (readlink($path) ?: null) : null,
+                'real' => realpath($path) ?: null,
+            ];
         }
 
-        return is_file($path) && is_executable($path);
+        $script = 'for t in e L f x; do if test -$t "$1"; then printf 1; else printf 0; fi; done;'
+            .' printf "\n%s\n%s" "$(readlink "$1")" "$(readlink -f "$1")"';
+
+        $lines = explode("\n", Process::run(['sh', '-c', $script, 'sh', $path])->output(), 3);
+        $flags = str_pad($lines[0], 4, '0');
+
+        return [
+            'exists' => $flags[0] === '1',
+            'link' => $flags[1] === '1',
+            'file' => $flags[2] === '1',
+            'executable' => $flags[3] === '1',
+            'target' => trim($lines[1] ?? '') ?: null,
+            'real' => trim($lines[2] ?? '') ?: null,
+        ];
     }
 
     /**
@@ -211,16 +245,17 @@ class BinaryRunner
 
         if (str_contains($binary, DIRECTORY_SEPARATOR) || str_starts_with($binary, '~')) {
             $expanded = $this->expandHome($binary);
+            $info = $this->inspectPath($expanded);
 
-            if (is_link($expanded) && ! file_exists($expanded)) {
+            if ($info['link'] && ! $info['exists']) {
                 return "broken symlink at {$expanded} — remove it and reinstall, or set HACKLY_".strtoupper($name).' to the real path (try: command -v '.$name.')';
             }
 
-            if (! file_exists($expanded)) {
+            if (! $info['exists']) {
                 return "{$expanded} does not exist — run: command -v {$name}  (apt often installs trivy in /usr/bin/trivy)";
             }
 
-            if (! is_executable($expanded)) {
+            if (! $info['executable']) {
                 return "{$expanded} exists but is not executable by this PHP user — chmod a+rx or fix ownership";
             }
         }
@@ -237,22 +272,24 @@ class BinaryRunner
                 continue;
             }
 
-            if (! file_exists($shadow) && ! is_link($shadow)) {
+            $info = $this->inspectPath($shadow);
+
+            if (! $info['exists'] && ! $info['link']) {
                 continue;
             }
 
-            $target = is_link($shadow) ? (readlink($shadow) ?: $shadow) : $shadow;
-            $real = realpath($shadow) ?: $target;
+            $target = $info['target'] ?? $shadow;
+            $real = $info['real'] ?? $target;
 
-            if (str_starts_with((string) $real, '/root/') || str_starts_with((string) $target, '/root/')) {
+            if (str_starts_with($real, '/root/') || str_starts_with($target, '/root/')) {
                 return "found {$shadow} but it lives under /root (not runnable by this PHP user). Re-run: sudo bash scripts/install-repo-scanners.sh";
             }
 
-            if ($this->isUsableBinary($shadow)) {
+            if ($info['file'] && $info['executable']) {
                 return "usable at {$shadow} — set HACKLY_".strtoupper($name)."={$shadow} or remove the wrong absolute path from .env";
             }
 
-            if (! is_executable($shadow)) {
+            if (! $info['executable']) {
                 return "found {$shadow} but not executable by this PHP user";
             }
         }
