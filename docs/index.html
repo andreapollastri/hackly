@@ -1088,8 +1088,9 @@
       <p class="section-kicker">Coverage</p>
       <h2 class="section-title">Targets and repos.<br>Same control plane.</h2>
       <p class="section-lead">
-        DAST for verified targets, SAST/SCA for GitHub clones — with soft rate limits on live probes
-        and Aikido-style post-processing on repo findings.
+        DAST for verified targets, SAST/SCA for GitHub clones, a penetration test that needs a fresh
+        DNS check, and compliance packs scored from those scans. Link a domain to its repository
+        and Hackly treats them as one application.
       </p>
 
       <p class="section-kicker" style="margin-top:0.5rem">Target scanners</p>
@@ -1097,49 +1098,55 @@
         <div class="coverage-row">
           <span class="n">01</span>
           <span class="name">DNS / WHOIS</span>
-          <span class="desc"><code>dig</code> + <code>whois</code> — records, registrar, and basic exposure.</span>
+          <span class="desc"><code>dig</code> + <code>whois</code> — records, DNSSEC, CAA, zone transfer and wildcards.</span>
           <span class="tag">quick · standard · deep</span>
         </div>
         <div class="coverage-row">
           <span class="n">02</span>
+          <span class="name">Mail &amp; TLS</span>
+          <span class="desc">SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and the certificate on the domain.</span>
+          <span class="tag">quick · standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">03</span>
           <span class="name">Port scan</span>
           <span class="desc"><code>nmap</code> top ports with light service detection.</span>
           <span class="tag">quick · standard · deep</span>
         </div>
         <div class="coverage-row">
-          <span class="n">03</span>
+          <span class="n">04</span>
           <span class="name">Tech fingerprint</span>
-          <span class="desc">Soft HTTP checks for PHP/Laravel headers, cookies, and debug pages.</span>
+          <span class="desc">Soft HTTP checks for PHP/Laravel headers, cookies, CORS and debug pages.</span>
           <span class="tag">quick · standard · deep</span>
         </div>
         <div class="coverage-row">
-          <span class="n">04</span>
-          <span class="name">Subdomains</span>
-          <span class="desc">Soft wordlist + Certificate Transparency logs.</span>
-          <span class="tag">standard · deep</span>
-        </div>
-        <div class="coverage-row">
           <span class="n">05</span>
-          <span class="name">Path discovery</span>
-          <span class="desc">Soft wordlist / Nuclei — Laravel exposures (<code>.env</code>, Telescope, Horizon…).</span>
+          <span class="name">Subdomains &amp; origin</span>
+          <span class="desc">Wordlist plus Certificate Transparency. Standard and deep also check whether the origin answers directly, past the edge.</span>
           <span class="tag">standard · deep</span>
         </div>
         <div class="coverage-row">
           <span class="n">06</span>
+          <span class="name">Path discovery</span>
+          <span class="desc">Soft wordlist / Nuclei, plus routes learned from a linked repository. Sensitive paths such as <code>.env</code> and Telescope are findings. Ordinary pages are not.</span>
+          <span class="tag">standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">07</span>
           <span class="name">Nuclei templates</span>
           <span class="desc">OWASP + PHP/Laravel/dotenv vulnerability templates via <code>nuclei</code>.</span>
           <span class="tag">standard · deep</span>
         </div>
         <div class="coverage-row">
-          <span class="n">07</span>
+          <span class="n">08</span>
           <span class="name">OWASP ZAP DAST</span>
           <span class="desc">Baseline DAST for deep profile — longer timeout, cooldown enforced.</span>
           <span class="tag">deep</span>
         </div>
         <div class="coverage-row">
-          <span class="n">08</span>
+          <span class="n">09</span>
           <span class="name">Penetration test</span>
-          <span class="desc">Fresh DNS TXT each run. Covers the whole host with Nuclei, ZAP, <code>nikto</code> and <code>wpscan</code>, plus linked repositories and the routes learned from that code. The scanner IP is shown so it can be allowlisted.</span>
+          <span class="desc">A new DNS TXT every run, then the whole host: Nuclei, ZAP, <code>nikto</code> and <code>wpscan</code>, declared API, logins and ports, plus a deep scan of each linked repository. The scanner IP is shown so it can be allowlisted. WPScan does not guess passwords.</span>
           <span class="tag">engagement</span>
         </div>
       </div>
@@ -1246,7 +1253,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
 <span class="tok-cmt"># or separately:</span>
 <span class="tok-cmd">php artisan serve</span>
 <span class="tok-cmd">php artisan queue:work</span>  <span class="tok-cmt"># required</span>
-<span class="tok-cmd">php artisan schedule:work</span>  <span class="tok-cmt"># optional: cleanup only</span></pre>
+<span class="tok-cmd">php artisan schedule:work</span>  <span class="tok-cmt"># cleanup, Sunday digest, daily tool databases</span></pre>
         </div>
       </div>
 
@@ -1269,7 +1276,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           <span class="n">03</span>
           <div>
             <h3>Scan, then triage</h3>
-            <p>Target DAST, repository SAST / SCA, or both via linked assets. Work the Findings list from High to Low and mark what you fixed.</p>
+            <p>Target DAST, repository SAST / SCA, or both via a linked app. Penetration tests need a fresh DNS check. Compliance scores what those scans already found. Work the Findings list from High to Low.</p>
           </div>
         </div>
       </div>
@@ -1286,6 +1293,9 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           <li><a href="#doc-binaries">Scanner binaries</a></li>
           <li><a href="#doc-usage">Targets</a></li>
           <li><a href="#doc-repos">Repositories</a></li>
+          <li><a href="#doc-links">Linked apps</a></li>
+          <li><a href="#doc-pentest">Penetration tests</a></li>
+          <li><a href="#doc-compliance">Compliance</a></li>
           <li><a href="#doc-findings">Findings &amp; triage</a></li>
           <li><a href="#doc-digest">Weekly digest</a></li>
           <li><a href="#doc-api">API</a></li>
@@ -1303,7 +1313,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           <p class="section-kicker">Documentation</p>
           <h2 class="section-title">Reference</h2>
           <p class="section-lead" style="margin-bottom:0">
-            Dual-path architecture (targets + repos), profiles, CLI, env knobs, and the ownership-first security model.
+            Targets, repositories, how a link between them changes DAST and penetration tests, compliance scope, profiles, CLI, and the ownership-first security model.
           </p>
         </header>
 
@@ -1316,19 +1326,20 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           </p>
           <div class="code-block">
             <div class="code-header"><span>Architecture</span></div>
-            <pre>Target (verified)                    Repository (GitHub PAT)
+            <pre>Target (DNS-verified)               Repository (GitHub PAT)
    │                                      │
-   ├─ optional link ──────────────────────┤
+   ├─ link, from either side or a pentest ┤
    │                                      │
    ├─ Scan (DAST)                         ├─ RepoScan
-   │    └─ ScanTasks → Findings           │    └─ RepoScanTasks → Findings
-   │                                      │         (asset_id nullable)
-   └─ optional: include linked repos      └─ optional: include linked targets</pre>
+   │    uses routes from the last clone   │    remembers those routes
+   ├─ Penetration test                    │
+   │    new TXT + deep scan of linked code│
+   └─ Compliance subject                  └─ same line when the two are linked</pre>
           </div>
           <p style="margin-top:1rem">
             Jobs use the <strong>database queue</strong> (no Horizon). A queue worker must be
-            running for scans to execute. Linking Targets ↔ Repositories is optional — each side
-            can scan on its own.
+            running for scans to execute. Linking is optional — each side can still be scanned
+            on its own. When you do link them, DAST, penetration tests and compliance use the pair.
           </p>
         </article>
 
@@ -1376,7 +1387,15 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
                 </tr>
                 <tr>
                   <td class="mono">zap.sh</td>
-                  <td>Deep DAST (OWASP ZAP)</td>
+                  <td>Deep DAST, and a longer pass in a penetration test</td>
+                </tr>
+                <tr>
+                  <td class="mono">nikto</td>
+                  <td>Web-server checks in a penetration test. The task is skipped when the binary is missing</td>
+                </tr>
+                <tr>
+                  <td class="mono">wpscan</td>
+                  <td>WordPress version, plugins, themes and known vulnerabilities. No password guessing. Skipped when missing. <code>HACKLY_WPSCAN_API_TOKEN</code> is optional and only loads vulnerability data</td>
                 </tr>
               </tbody>
             </table>
@@ -1452,11 +1471,15 @@ php artisan hackly:check-binaries">Copy</button>
             <li><strong>Targets → Add target</strong> — enter a domain (a pasted URL is normalized)</li>
             <li>Publish the TXT record shown on the target page at your DNS provider</li>
             <li><strong>Check DNS</strong> — once the token is found the target is unlocked</li>
-            <li><strong>Start scan</strong> — pick a profile; optionally <strong>Also scan linked repositories</strong></li>
+            <li><strong>Start scan</strong> — pick a profile. <strong>Also scan linked repositories</strong> is already on when a repository is linked</li>
             <li>Follow progress live on the scan page; triage its findings or export a <strong>PDF / Markdown</strong> report</li>
             <li>The target page groups <strong>Findings</strong>, <strong>Scans</strong> and <strong>Linked repositories</strong></li>
           </ol>
-          <p style="margin-top:1rem">Targets do <strong>not</strong> need a linked repository.</p>
+          <p style="margin-top:1rem">
+            The DNS dialog shows the <strong>scanner IP</strong>. Allowlist it if the host drops unknown clients.
+            Set <code>HACKLY_EGRESS_IP</code> when the worker cannot detect its own address.
+            Targets do <strong>not</strong> need a linked repository.
+          </p>
           <h4>CLI</h4>
           <div class="code-block">
             <div class="code-header">
@@ -1475,8 +1498,8 @@ php artisan hackly:scan example.com --include-repos">Copy</button>
           <ol>
             <li><strong>Settings → GitHub tokens → Add token</strong> (or create one inline while adding a repository)</li>
             <li><strong>Repositories → Add repository</strong> — <code>owner/repo</code> or a <code>github.com</code> URL, checked against the GitHub API</li>
-            <li>Optionally link one or more <strong>Targets</strong></li>
-            <li><strong>Scan now</strong> — pick a profile; optionally <strong>Also deep-scan linked targets</strong> (DAST + live Laravel probes)</li>
+            <li>Link the <strong>Targets</strong> where this code is deployed. The same link appears in compliance as one line, and a penetration test scans that code with the host</li>
+            <li><strong>Scan now</strong> — pick a profile. <strong>Also deep-scan linked targets</strong> is already on when a linked target is verified (DAST plus live Laravel probes)</li>
             <li>Review findings and scan history on the repository page; export reports from any scan</li>
           </ol>
           <p style="margin-top:1rem">
@@ -1522,6 +1545,129 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
             </div>
             <pre><span class="tok-cmd">php artisan hackly:repo-scan</span> <span class="tok-arg">owner/repo</span> <span class="tok-flag">--profile=standard</span>
 <span class="tok-cmd">php artisan hackly:repo-scan</span> <span class="tok-arg">owner/repo</span> <span class="tok-flag">--include-targets</span></pre>
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-links">
+          <h3>Linked apps</h3>
+          <p>
+            A link says “this repository is what runs on this domain”. Create it from
+            <strong>Linked repositories</strong> on the target, <strong>Linked targets</strong> on the repository,
+            or <strong>Linked repositories</strong> on a penetration test. The API uses
+            <code>PUT /api/v1/targets/{id}/repositories</code> and
+            <code>PUT /api/v1/repositories/{id}/targets</code>.
+            <code>repository_ids</code> on a penetration test writes the same link.
+          </p>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr><th>Where</th><th>What the link changes</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="strong">Target scan</td>
+                  <td><strong>Also scan linked repositories</strong> is on by default. The CLI flag is <code>--include-repos</code></td>
+                </tr>
+                <tr>
+                  <td class="strong">Repository scan</td>
+                  <td><strong>Also deep-scan linked targets</strong> is on when a linked target is verified. The CLI flag is <code>--include-targets</code></td>
+                </tr>
+                <tr>
+                  <td class="strong">Penetration test</td>
+                  <td>Always queues a deep scan of each linked, active repository. That scan does not start a second DAST of the same host</td>
+                </tr>
+                <tr>
+                  <td class="strong">Routes</td>
+                  <td>A repository scan remembers Laravel routes, Next.js <code>app/</code> pages and <code>pages/</code> routes. The next DAST and the next penetration test request them on the authorized host. Ordinary pages are not findings</td>
+                </tr>
+                <tr>
+                  <td class="strong">Compliance</td>
+                  <td>A linked pair is one line, <code>shop.example.com + acme/shop</code>. An unlinked target or repository stays on its own line</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            Routes are stored when the repository scan finishes. The penetration test started in the same minute
+            still uses routes from the previous scan. The deep code scan queued beside it is immediate.
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-pentest">
+          <h3>Penetration tests</h3>
+          <p>
+            <strong>Attack surface → Penetration tests</strong> is an engagement, not a profile on Start scan.
+            The target must already be DNS-verified and active. Each run then needs a <strong>new</strong> TXT
+            record, <code>hackly-pentest=</code>, on that same host. It lasts
+            <code>HACKLY_PENTEST_AUTH_MINUTES</code> (30) and is consumed when the test starts.
+            Issue another one for the next run. There is a cooldown of
+            <code>HACKLY_PENTEST_COOLDOWN_HOURS</code> (6) per target.
+          </p>
+          <p>
+            The authorization screen shows the <strong>scanner IP</strong> (the same address as the ordinary DNS check).
+            Allowlist it. Set <code>HACKLY_EGRESS_IP</code> if this server should not look the address up itself.
+          </p>
+          <h4>What you can declare</h4>
+          <ul>
+            <li>Technology: Laravel, PHP, WordPress, Drupal, Django, Rails, Spring, ASP.NET, Node, Next.js, or mixed</li>
+            <li>Swagger / OpenAPI URL, login areas, other URLs, and extra ports. Every URL must stay on the authorized host</li>
+            <li>One test account. Hackly posts that form once and reviews the session cookie. It does not guess passwords</li>
+            <li>Notes, how authentication works, and what is out of scope</li>
+          </ul>
+          <h4>What always runs</h4>
+          <p>
+            The declared URLs are extra. The run still covers the whole origin: tech fingerprint, path discovery,
+            TLS, technology surface, the OpenAPI document, the login pages, a fixed professional port set plus
+            the ports you named, Nuclei across Laravel, PHP, frontends, Apache, Nginx and WordPress, WPScan,
+            Nikto, and a longer OWASP ZAP pass. Missing <code>wpscan</code> or <code>nikto</code> skips that task.
+            WPScan is forced only when the technology is WordPress, and it never receives a password list.
+          </p>
+          <div class="callout">
+            API: create the engagement, <code>POST …/authorization</code>, publish the TXT,
+            <code>POST …/authorization/check</code>, then <code>POST …/run</code>.
+            The payload includes <code>scanner_ip</code>. A second start with the same TXT is rejected.
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-compliance">
+          <h3>Compliance</h3>
+          <p>
+            <strong>Security → Compliance</strong> scores evidence from scans you already ran.
+            It is not a certification, an attestation, or a legal opinion. A control Hackly cannot observe
+            is <strong>out of scope</strong>, not a pass.
+          </p>
+          <p>
+            The posture score starts at 100. Open highs, acknowledged highs, open mediums and lows,
+            unverified targets, and a workspace with assets but no completed scan in 30 days each reduce it.
+            The method is printed on the page and in the report.
+          </p>
+          <h4>Scope</h4>
+          <p>
+            <strong>All</strong> is the whole workspace. Every other line is one subject:
+          </p>
+          <ul>
+            <li>a target with no repository, shown as the domain</li>
+            <li>a repository with no target, shown as <code>owner/repo</code></li>
+            <li>a linked pair, shown as <code>shop.example.com + acme/shop</code></li>
+          </ul>
+          <p>
+            The grade, the framework cards and the PDF / Markdown downloads follow that line.
+            A pair includes findings on the domain and findings on that repository.
+          </p>
+          <h4>Packs</h4>
+          <p>
+            DORA, SOC 2, NIS2, ISO/IEC 27001, PCI DSS, GDPR, NIST CSF 2.0, OWASP Top 10,
+            CIS Controls v8, HIPAA, Cyber Essentials, and the Essential Eight.
+            Each control is met, partial, a gap, not assessed, or out of scope.
+            API ids: <code>dora</code>, <code>soc2</code>, <code>nis2</code>, <code>iso-27001</code>,
+            <code>pci-dss</code>, <code>gdpr</code>, <code>nist-csf</code>, <code>owasp-top-10</code>,
+            <code>cis-v8</code>, <code>hipaa</code>, <code>cyber-essentials</code>, <code>essential-eight</code>.
+          </p>
+          <div class="callout">
+            API query <code>subject</code> on <code>/api/v1/posture</code>, <code>/api/v1/compliance</code>
+            and the report routes. Omit it for everything. Otherwise
+            <code>target:{uuid}</code>, <code>repository:{uuid}</code>, or
+            <code>pair:{targetUuid}:{repositoryUuid}</code>. An unknown or unlinked pair is 404.
           </div>
         </article>
 
@@ -1583,6 +1729,8 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
             <code>write</code> (changes, and reads), and <code>read</code>.
             The interactive reference is <a class="link-inline" href="api.html">the API docs</a>,
             and a running app serves the same spec at <code>/api/docs</code>.
+            Compliance and posture accept <code>subject</code>. Penetration tests are their own
+            resources: create, authorize, check the TXT, then run. <code>scanner_ip</code> is the address to allowlist.
           </p>
           <p>
             Issue a token from the shell when you do not want to open the panel:
@@ -1612,7 +1760,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 </tr>
                 <tr>
                   <td class="strong">Target + repos</td>
-                  <td>Also scan linked repositories</td>
+                  <td>Also scan linked repositories (on when linked)</td>
                   <td class="mono">hackly:scan … --include-repos</td>
                 </tr>
                 <tr>
@@ -1622,15 +1770,21 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 </tr>
                 <tr>
                   <td class="strong">Repo + targets</td>
-                  <td>Also deep-scan linked targets</td>
+                  <td>Also deep-scan linked targets (on when verified)</td>
                   <td class="mono">hackly:repo-scan … --include-targets</td>
+                </tr>
+                <tr>
+                  <td class="strong">Penetration test</td>
+                  <td>Penetration tests, after a fresh TXT</td>
+                  <td class="mono">POST /api/v1/penetration-tests/{id}/run</td>
                 </tr>
               </tbody>
             </table>
           </div>
           <p style="margin-top:1rem">
             Laravel live pentest runs only when the repo scan includes linked targets.
-            Repo-only scans skip it.
+            Repo-only scans skip it. A penetration test’s linked repository scan is a deep code scan
+            and does not start that live probe again.
           </p>
         </article>
 
@@ -1648,11 +1802,11 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
               <tbody>
                 <tr>
                   <td class="strong">quick</td>
-                  <td><code>dns_info</code>, <code>port_scan</code>, <code>tech_fingerprint</code></td>
+                  <td><code>dns_info</code>, <code>mail_security</code>, <code>tls_check</code>, <code>port_scan</code>, <code>tech_fingerprint</code></td>
                 </tr>
                 <tr>
                   <td class="strong">standard</td>
-                  <td>+ <code>subdomain_enum</code>, <code>path_discovery</code>, <code>nuclei_owasp</code></td>
+                  <td>+ <code>subdomain_enum</code>, <code>origin_exposure</code>, <code>path_discovery</code>, <code>nuclei_owasp</code></td>
                 </tr>
                 <tr>
                   <td class="strong">deep</td>
@@ -1691,6 +1845,15 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
             * Live pentest only when linked targets are included. <code>checkpoint</code> runs on every
             repository profile and records each of the 30 Checkpoint checks.
             Findings are normalized to <strong>LOW / MEDIUM / HIGH</strong>.
+          </p>
+
+          <h4 style="margin-top:1.75rem">Penetration test</h4>
+          <p>
+            Not listed on Start scan. Tasks: <code>tech_fingerprint</code>, <code>path_discovery</code>,
+            <code>tls_check</code>, <code>pentest_surface</code>, <code>pentest_api</code>,
+            <code>pentest_login</code>, <code>pentest_ports</code>, <code>nuclei_pentest</code>,
+            <code>wpscan</code>, <code>nikto</code>, <code>zap_pentest</code>, plus a deep repository
+            scan for each linked repository.
           </p>
         </article>
 
@@ -1746,7 +1909,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 </tr>
                 <tr>
                   <td class="mono">schedule:work</td>
-                  <td>Hourly cleanup of old outputs (or cron <code>schedule:run</code>)</td>
+                  <td>Hourly output cleanup, the Sunday digest, and the daily Nuclei / Trivy / Semgrep refresh (or cron <code>schedule:run</code>)</td>
                 </tr>
               </tbody>
             </table>
@@ -1781,6 +1944,12 @@ DB_QUEUE_RETRY_AFTER=1020
 HACKLY_NMAP=nmap
 HACKLY_NUCLEI=nuclei
 HACKLY_ZAP=zap.sh
+HACKLY_NIKTO=nikto
+HACKLY_WPSCAN=wpscan
+# HACKLY_WPSCAN_API_TOKEN=
+# HACKLY_EGRESS_IP=
+# HACKLY_PENTEST_AUTH_MINUTES=30
+# HACKLY_PENTEST_COOLDOWN_HOURS=6
 
 HACKLY_GIT=git
 HACKLY_COMPOSER=composer
@@ -1814,6 +1983,12 @@ HACKLY_NMAP=nmap
 HACKLY_NUCLEI=nuclei
 <span class="tok-cmt"># macOS: HACKLY_ZAP=/Applications/ZAP.app/Contents/Java/zap.sh</span>
 HACKLY_ZAP=zap.sh
+HACKLY_NIKTO=nikto
+HACKLY_WPSCAN=wpscan
+<span class="tok-cmt"># HACKLY_WPSCAN_API_TOKEN=</span>
+<span class="tok-cmt"># HACKLY_EGRESS_IP=</span>
+<span class="tok-cmt"># HACKLY_PENTEST_AUTH_MINUTES=30</span>
+<span class="tok-cmt"># HACKLY_PENTEST_COOLDOWN_HOURS=6</span>
 
 <span class="tok-cmt"># GitHub repository scanning</span>
 HACKLY_GIT=git
@@ -1832,9 +2007,10 @@ HACKLY_CHECKOV=checkov
         <article class="doc-block" id="doc-security">
           <h3>Security model</h3>
           <ul>
-            <li><strong>Target</strong> scans require <strong>ownership verification</strong> (DNS TXT for domains)</li>
+            <li><strong>Target</strong> scans require <strong>ownership verification</strong> (DNS TXT). The scanner IP is shown on that screen</li>
+            <li><strong>Penetration tests</strong> keep that check and add a fresh TXT per run. It expires and is consumed on start. Declared URLs cannot leave the authorized host</li>
             <li><strong>Repository</strong> scans require a GitHub token with read access to that repo</li>
-            <li>Linking Targets ↔ Repositories is optional; scans remain independently startable</li>
+            <li>Linking targets and repositories is optional. Linked scans stay on those assets. WPScan does not guess passwords</li>
             <li>Optional <strong>allowlist</strong> and private-IP blocking for Targets</li>
             <li>Soft <strong>rate limits</strong>, <strong>jitter</strong>, <strong>task spacing</strong>, and <strong>quiet hours</strong></li>
             <li><strong>Deep</strong> target profile has a cooldown between runs</li>
@@ -1859,8 +2035,9 @@ HACKLY_CHECKOV=checkov
             <li>Change the seeded admin password immediately</li>
             <li>Store GitHub PATs only via the <strong>GitHub tokens</strong> UI</li>
             <li>Run both install scripts on the scan worker host, then <code>hackly:check-binaries</code> as the queue user</li>
-            <li>Keep the scheduler running so <code>hackly:update-databases</code> refreshes Nuclei, Trivy, and Semgrep data daily</li>
-            <li>Run a persistent <code>queue:work</code>; optionally <code>schedule:work</code> (or cron) for output cleanup</li>
+            <li>Set <code>HACKLY_EGRESS_IP</code> to the address operators should allowlist</li>
+            <li>Keep the scheduler running so the Sunday digest is sent and <code>hackly:update-databases</code> refreshes Nuclei, Trivy, and Semgrep data daily</li>
+            <li>Run a persistent <code>queue:work</code>, and <code>schedule:work</code> or cron <code>schedule:run</code></li>
           </ul>
           <p style="margin-top:1rem">
             Source and issues:

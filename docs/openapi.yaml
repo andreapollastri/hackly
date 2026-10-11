@@ -14,6 +14,16 @@ info:
     Public share links are unguessable and read-only; unsharing invalidates them.
 
     The Sunday digest is also available here as JSON. Mail delivery is `php artisan hackly:digest`.
+
+    Compliance and posture accept an optional `subject` query. Omit it for the whole workspace.
+    Otherwise pass `target:{uuid}`, `repository:{uuid}`, or `pair:{targetUuid}:{repositoryUuid}`
+    when those two records are linked. An unknown subject is 404.
+
+    A penetration test is an engagement on top of the standing DNS check. Each run needs its own
+    TXT (`POST …/authorization`, then `…/authorization/check`, then `…/run`). The check expires
+    and is consumed on start. `repository_ids` links repositories to the target. `scanner_ip`
+    is the address to allowlist. WPScan does not guess passwords. Missing `wpscan` or `nikto`
+    skips that task.
 servers:
   - url: /api
 security:
