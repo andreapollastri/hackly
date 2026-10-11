@@ -160,7 +160,7 @@ No Node build is needed: Filament ships its compiled assets and Hackly's panel s
 | Path discovery | soft wordlist / Nuclei (Laravel exposures) | standard · deep |
 | Nuclei templates | `nuclei` (+ laravel/php/dotenv tags) | standard · deep |
 | OWASP ZAP baseline | ZAP (calibrated severities) | deep |
-| Penetration test | Fresh DNS check, then the whole host: Nuclei, ZAP, Nikto, WPScan, scoped ports, declared API and logins | engagement |
+| Penetration test | Fresh DNS check, then the whole host: Nuclei, ZAP, Nikto, WPScan, scoped ports, declared API and logins, plus linked repositories and the routes learned from them | engagement |
 
 ### Repository scanners (Laravel / PHP)
 

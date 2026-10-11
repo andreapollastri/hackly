@@ -13,6 +13,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 
@@ -43,6 +44,10 @@ class StartRepositoryScanAction
                     ->searchable()
                     ->required()
                     ->live()
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        $repository = filled($state) ? Repository::query()->find($state) : null;
+                        $set('include_targets', $repository?->assets()->whereNotNull('verified_at')->exists() ?? false);
+                    })
                     ->visible($pickRepository),
                 Radio::make('profile')
                     ->label('Profile')
@@ -55,8 +60,8 @@ class StartRepositoryScanAction
                     ->required(),
                 Toggle::make('include_targets')
                     ->label('Also deep-scan linked targets')
-                    ->helperText('Queues a deep DAST scan and live Laravel probes on every verified target linked to this repository.')
-                    ->default(false)
+                    ->helperText('On when a verified target is linked. Queues a deep DAST scan and live probes on that domain.')
+                    ->default(fn (?Repository $record): bool => $record instanceof Repository && $record->assets()->whereNotNull('verified_at')->exists())
                     ->visible(fn (?Repository $record, Get $get): bool => (static::resolveRepository($record, $get('repository_id')))?->assets()->exists() ?? false),
             ])
             ->action(function (?Repository $record, array $data, Action $action): void {

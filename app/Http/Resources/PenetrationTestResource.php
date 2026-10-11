@@ -45,6 +45,12 @@ class PenetrationTestResource extends JsonResource
                 'id' => $pentest->asset?->id,
                 'domain' => $pentest->asset?->value,
             ]),
+            'linked_repositories' => $pentest->asset === null ? [] : $pentest->asset->repositories
+                ->sortBy('full_name')
+                ->map(fn ($repository): array => [
+                    'id' => $repository->id,
+                    'full_name' => $repository->full_name,
+                ])->values()->all(),
             'created_at' => $pentest->created_at?->toIso8601String(),
             'updated_at' => $pentest->updated_at?->toIso8601String(),
         ];

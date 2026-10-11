@@ -21,7 +21,7 @@ class PenetrationTestController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $tests = PenetrationTest::query()
-            ->with('asset:id,value')
+            ->with('asset.repositories')
             ->latest()
             ->paginate($this->perPage($request));
 
@@ -30,26 +30,36 @@ class PenetrationTestController extends ApiController
 
     public function show(PenetrationTest $pentest): PenetrationTestResource
     {
-        $pentest->load('asset:id,value');
+        $pentest->load('asset.repositories');
 
         return new PenetrationTestResource($pentest);
     }
 
     public function store(Request $request): JsonResponse
     {
+        $data = $this->validated($request);
+        $repositoryIds = $data['repository_ids'] ?? null;
+        unset($data['repository_ids']);
+
         $pentest = PenetrationTest::query()->create([
-            ...$this->validated($request),
+            ...$data,
             'created_by' => $request->user()?->id,
         ]);
+        $this->syncRepositories($pentest, $repositoryIds);
 
-        return (new PenetrationTestResource($pentest->load('asset')))->response()->setStatusCode(201);
+        return (new PenetrationTestResource($pentest->load('asset.repositories')))->response()->setStatusCode(201);
     }
 
     public function update(Request $request, PenetrationTest $pentest): PenetrationTestResource
     {
-        $pentest->update($this->validated($request, $pentest));
+        $data = $this->validated($request, $pentest);
+        $repositoryIds = array_key_exists('repository_ids', $data) ? $data['repository_ids'] : null;
+        unset($data['repository_ids']);
+        $pentest->update($data);
+        $pentest = $pentest->fresh();
+        $this->syncRepositories($pentest, $repositoryIds);
 
-        return new PenetrationTestResource($pentest->fresh()->load('asset'));
+        return new PenetrationTestResource($pentest->load('asset.repositories'));
     }
 
     public function destroy(PenetrationTest $pentest): JsonResponse
@@ -104,6 +114,8 @@ class PenetrationTestController extends ApiController
             'out_of_scope' => ['nullable', 'string', 'max:2000'],
             'test_username' => ['nullable', 'string', 'max:200'],
             'test_password' => ['nullable', 'string', 'max:200'],
+            'repository_ids' => ['sometimes', 'array', 'max:20'],
+            'repository_ids.*' => ['uuid', 'exists:repositories,id'],
         ]);
 
         $assetId = $data['asset_id'] ?? $existing?->asset_id;
@@ -138,5 +150,17 @@ class PenetrationTestController extends ApiController
         }
 
         return $data;
+    }
+
+    /**
+     * @param  list<string>|null  $repositoryIds
+     */
+    private function syncRepositories(PenetrationTest $pentest, ?array $repositoryIds): void
+    {
+        if ($repositoryIds === null || $pentest->asset === null) {
+            return;
+        }
+
+        $pentest->asset->repositories()->sync($repositoryIds);
     }
 }

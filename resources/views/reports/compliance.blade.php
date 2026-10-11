@@ -34,11 +34,14 @@
     <table>
         <tr>
             <th>Generated</th><td>{{ $report['generated_at'] }}</td>
-            <th>Targets</th><td>{{ $report['scope']['verified_targets'] }}/{{ $report['scope']['targets'] }} verified</td>
+            <th>Scope</th><td>{{ $report['scope']['subject']['label'] ?? 'All' }}</td>
         </tr>
         <tr>
+            <th>Targets</th><td>{{ $report['scope']['verified_targets'] }}/{{ $report['scope']['targets'] }} verified</td>
             <th>Repositories</th><td>{{ $report['scope']['repositories'] }}</td>
-            <th>Open issues</th><td>{{ $report['scope']['open_high'] }} high · {{ $report['scope']['open_medium'] }} medium · {{ $report['scope']['open_low'] }} low</td>
+        </tr>
+        <tr>
+            <th>Open issues</th><td colspan="3">{{ $report['scope']['open_high'] }} high · {{ $report['scope']['open_medium'] }} medium · {{ $report['scope']['open_low'] }} low</td>
         </tr>
     </table>
     <h2>Controls</h2>

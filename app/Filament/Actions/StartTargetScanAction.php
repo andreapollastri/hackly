@@ -13,6 +13,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 
@@ -48,6 +49,10 @@ class StartTargetScanAction
                     ->searchable()
                     ->required()
                     ->live()
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        $asset = filled($state) ? Asset::query()->find($state) : null;
+                        $set('include_repos', $asset?->repositories()->exists() ?? false);
+                    })
                     ->helperText('Only DNS-verified targets can be scanned.')
                     ->visible($pickTarget),
                 Radio::make('profile')
@@ -57,8 +62,8 @@ class StartTargetScanAction
                     ->required(),
                 Toggle::make('include_repos')
                     ->label('Also scan linked repositories')
-                    ->helperText('Runs SAST / SCA / secrets on every GitHub repository linked to this target.')
-                    ->default(false)
+                    ->helperText('On when a repository is linked. That code is scanned, and later DAST checks the routes learned from it.')
+                    ->default(fn (?Asset $record): bool => $record instanceof Asset && $record->repositories()->exists())
                     ->visible(fn (?Asset $record, Get $get): bool => (static::resolveAsset($record, $get('asset_id')))?->repositories()->exists() ?? false),
             ])
             ->action(function (?Asset $record, array $data, Action $action): void {

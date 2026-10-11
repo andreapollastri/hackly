@@ -5,6 +5,7 @@ namespace App\Domain\Scanning\Scanners;
 use App\Domain\Scanning\DTO\BinaryResult;
 use App\Domain\Scanning\DTO\ScannerFinding;
 use App\Domain\Scanning\Services\BinaryRunner;
+use App\Domain\Scanning\Support\AppSurfaceCatalog;
 use App\Domain\Scanning\Support\NucleiRuntime;
 use App\Enums\FindingSeverity;
 use App\Enums\ScanTaskType;
@@ -110,13 +111,15 @@ class PathDiscoveryScanner extends AbstractScanner
         }
 
         // Soft HTTP path probing always runs (covers PHP/Laravel paths even when Nuclei is used).
-        return array_merge($findings, $this->probeWordlist($asset));
+        return array_merge($findings, $this->probeWordlist($asset), $this->probeLinkedRoutes($asset));
     }
 
     /**
-     * @return list<ScannerFinding>
+     * Wordlist paths, with routes learned from linked repositories placed first.
+     *
+     * @return list<string>
      */
-    private function probeWordlist(Asset $asset): array
+    public function discoveryPaths(Asset $asset): array
     {
         $wordlistPath = (string) config('hackly.path_discovery.wordlist');
         $paths = is_file($wordlistPath)
@@ -124,12 +127,27 @@ class PathDiscoveryScanner extends AbstractScanner
             : ['/', '/robots.txt', '/sitemap.xml', '/.well-known/security.txt', '/health', '/api', '/login', '/admin', '/.env', '/up'];
 
         $maxPaths = max(1, (int) config('hackly.path_discovery.max_paths', 80));
+
+        return array_slice(array_values(array_unique([...AppSurfaceCatalog::pathsFor($asset), ...$paths])), 0, $maxPaths);
+    }
+
+    /**
+     * @return list<ScannerFinding>
+     */
+    private function probeWordlist(Asset $asset): array
+    {
+        $paths = $this->discoveryPaths($asset);
+        $linked = array_flip(AppSurfaceCatalog::pathsFor($asset));
         $base = rtrim($asset->httpBaseUrl(), '/');
         $rateLimit = max(1, (int) config('hackly.path_discovery.rate_limit', 20));
         $delayMicros = (int) (1_000_000 / $rateLimit);
         $findings = [];
 
-        foreach (array_slice($paths, 0, $maxPaths) as $path) {
+        foreach ($paths as $path) {
+            if (isset($linked[$path])) {
+                continue;
+            }
+
             $url = $base.(str_starts_with($path, '/') ? $path : '/'.$path);
 
             try {
@@ -161,6 +179,88 @@ class PathDiscoveryScanner extends AbstractScanner
         }
 
         return $findings;
+    }
+
+    /**
+     * Routes remembered from linked repositories. Ordinary pages are not findings.
+     *
+     * @return list<ScannerFinding>
+     */
+    private function probeLinkedRoutes(Asset $asset): array
+    {
+        $paths = AppSurfaceCatalog::pathsFor($asset);
+
+        if ($paths === []) {
+            return [];
+        }
+
+        $base = rtrim($asset->httpBaseUrl(), '/');
+        $rateLimit = max(1, (int) config('hackly.path_discovery.rate_limit', 20));
+        $delayMicros = (int) (1_000_000 / $rateLimit);
+        $findings = [];
+
+        foreach ($paths as $path) {
+            $url = $base.$path;
+
+            try {
+                $response = Http::timeout(8)
+                    ->withHeaders(['User-Agent' => 'HacklySoftScanner/1.0'])
+                    ->withOptions(['allow_redirects' => false])
+                    ->head($url);
+                $status = $response->status();
+            } catch (\Throwable) {
+                usleep($delayMicros);
+
+                continue;
+            }
+
+            if ($this->isNotableLinkedPath($path, $status)) {
+                $findings[] = new ScannerFinding(
+                    title: "Linked application route: {$path} (HTTP {$status})",
+                    severity: $this->pathSeverity($path, $status),
+                    source: 'http',
+                    category: 'path_discovery',
+                    description: 'This path comes from a repository linked to '.$asset->value.'.',
+                    evidence: [
+                        'url' => $url,
+                        'status' => $status,
+                        'origin' => 'linked_repository',
+                    ],
+                    fingerprint: 'path-linked-'.$asset->id.'-'.$path,
+                );
+            }
+
+            usleep($delayMicros);
+        }
+
+        $findings[] = new ScannerFinding(
+            title: 'Linked application routes checked',
+            severity: FindingSeverity::Low,
+            source: 'http',
+            category: 'passed',
+            description: 'Checked '.count($paths).' routes learned from repositories linked to '.$asset->value.'.',
+            evidence: ['paths' => count($paths), 'origin' => 'linked_repository'],
+            fingerprint: 'path-linked-summary-'.$asset->id,
+        );
+
+        return $findings;
+    }
+
+    private function isNotableLinkedPath(string $path, int $status): bool
+    {
+        if (! in_array($status, [200, 201, 204, 301, 302, 307, 401, 403], true)) {
+            return false;
+        }
+
+        $lower = strtolower($path);
+
+        foreach (['.env', '.git', 'laravel.log', 'phpinfo', 'telescope', 'horizon', 'actuator', 'wp-config', 'debug', 'elmah', 'eval-stdin'] as $needle) {
+            if (str_contains($lower, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function pathSeverity(string $path, int $status): FindingSeverity

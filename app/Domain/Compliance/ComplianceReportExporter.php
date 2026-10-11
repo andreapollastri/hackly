@@ -16,10 +16,11 @@ class ComplianceReportExporter
         private readonly PostureScore $posture,
     ) {}
 
-    public function framework(ComplianceFramework $framework, string $format): StreamedResponse
+    public function framework(ComplianceFramework $framework, string $format, ?ComplianceSubject $subject = null): StreamedResponse
     {
-        $report = $this->builder->build($framework);
-        $slug = $framework->value;
+        $subject ??= ComplianceSubject::all();
+        $report = $this->builder->build($framework, subject: $subject);
+        $slug = $framework->value.$this->suffix($subject);
 
         if ($format === 'pdf') {
             return $this->pdf('reports.compliance', ['report' => $report], "hackly-{$slug}");
@@ -28,23 +29,26 @@ class ComplianceReportExporter
         return $this->markdown('reports.compliance-md', ['report' => $report], "hackly-{$slug}");
     }
 
-    public function posture(string $format): StreamedResponse
+    public function posture(string $format, ?ComplianceSubject $subject = null): StreamedResponse
     {
-        $report = $this->postureDocument();
+        $subject ??= ComplianceSubject::all();
+        $report = $this->postureDocument($subject);
+        $name = 'hackly-posture'.$this->suffix($subject);
 
         if ($format === 'pdf') {
-            return $this->pdf('reports.posture', ['report' => $report], 'hackly-posture');
+            return $this->pdf('reports.posture', ['report' => $report], $name);
         }
 
-        return $this->markdown('reports.posture-md', ['report' => $report], 'hackly-posture');
+        return $this->markdown('reports.posture-md', ['report' => $report], $name);
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function postureDocument(): array
+    public function postureDocument(?ComplianceSubject $subject = null): array
     {
-        $findings = Finding::query()
+        $subject ??= ComplianceSubject::all();
+        $findings = $subject->constrainFindings(Finding::query())
             ->issues()
             ->open()
             ->with(['asset:id,value', 'repository:id,full_name'])
@@ -55,7 +59,7 @@ class ComplianceReportExporter
         return [
             'disclaimer' => ComplianceReportBuilder::DISCLAIMER,
             'generated_at' => now()->toIso8601String(),
-            'posture' => $this->posture->snapshot(),
+            'posture' => $this->posture->snapshot(subject: $subject),
             'findings' => $findings->map(fn (Finding $finding): array => [
                 'title' => $finding->title,
                 'severity' => $finding->severity instanceof FindingSeverity ? $finding->severity->value : (string) $finding->severity,
@@ -96,6 +100,15 @@ class ComplianceReportExporter
             $filename,
             ['Content-Type' => 'text/markdown; charset=UTF-8'],
         );
+    }
+
+    private function suffix(ComplianceSubject $subject): string
+    {
+        if ($subject->isAll()) {
+            return '';
+        }
+
+        return '-'.Str::slug($subject->label);
     }
 
     public static function normalizeFormat(string $format): string

@@ -13,6 +13,7 @@
 
 | | |
 | --- | --- |
+| Scope | {{ $report['scope']['subject']['label'] ?? 'All' }} |
 | Targets verified | {{ $report['scope']['verified_targets'] }}/{{ $report['scope']['targets'] }} |
 | Repositories | {{ $report['scope']['repositories'] }} |
 | Open issues | {{ $report['scope']['open_high'] }} high · {{ $report['scope']['open_medium'] }} medium · {{ $report['scope']['open_low'] }} low |

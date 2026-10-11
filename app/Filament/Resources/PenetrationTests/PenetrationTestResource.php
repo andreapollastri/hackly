@@ -16,6 +16,7 @@ use App\Filament\Resources\Scans\ScanResource;
 use App\Filament\Support\NavigationGroup;
 use App\Models\Asset;
 use App\Models\PenetrationTest;
+use App\Models\Repository;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -28,6 +29,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -70,7 +72,20 @@ class PenetrationTestResource extends Resource
                     ->searchable()
                     ->required()
                     ->live()
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        $ids = filled($state)
+                            ? Asset::query()->find($state)?->repositories()->pluck('repositories.id')->all()
+                            : [];
+                        $set('repository_ids', $ids ?? []);
+                    })
                     ->helperText('The target must already pass the standing DNS ownership check. Each run then asks for a new one.'),
+                Select::make('repository_ids')
+                    ->label('Linked repositories')
+                    ->multiple()
+                    ->options(fn (): array => Repository::query()->orderBy('full_name')->pluck('full_name', 'id')->all())
+                    ->searchable()
+                    ->helperText('The code that runs here. A penetration test also scans these repositories, and DAST checks the routes learned from them.')
+                    ->visible(fn (Get $get): bool => filled($get('asset_id'))),
                 TextInput::make('label')
                     ->required()
                     ->maxLength(120)
@@ -145,6 +160,11 @@ class PenetrationTestResource extends Resource
             ])->columns(2),
             Section::make('Scope')->schema([
                 TextEntry::make('asset.value')->label('Target'),
+                TextEntry::make('linked_repositories')
+                    ->label('Linked repositories')
+                    ->state(fn (PenetrationTest $record): array => $record->asset?->repositories()->orderBy('full_name')->pluck('full_name')->all() ?? [])
+                    ->placeholder('—')
+                    ->listWithLineBreaks(),
                 TextEntry::make('technology')->badge(),
                 TextEntry::make('technology_notes')->placeholder('—'),
                 TextEntry::make('swagger_url')->label('Swagger / OpenAPI')->placeholder('—')->copyable(),
@@ -235,7 +255,7 @@ class PenetrationTestResource extends Resource
             ->visible(fn (PenetrationTest $record): bool => $record->isAuthorizationReady())
             ->requiresConfirmation()
             ->modalHeading('Start this penetration test?')
-            ->modalDescription('This authorization is consumed. The run covers the whole authorized host, plus the API, logins, URLs and ports you declared.')
+            ->modalDescription('This authorization is consumed. The run covers the whole authorized host, the linked repositories, and the routes learned from that code.')
             ->modalSubmitActionLabel('Start')
             ->action(function (PenetrationTest $record, Action $action): void {
                 try {

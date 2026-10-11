@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Domain\RepoScanning\Services\RepoScanDispatcher;
 use App\Domain\RepoScanning\Services\RepoScannerRegistry;
 use App\Domain\Scanning\Services\BinaryRunner;
+use App\Domain\Scanning\Support\AppSurfaceCatalog;
 use App\Enums\ScanTaskStatus;
 use App\Models\RepoScanTask;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -57,6 +58,13 @@ class RunRepoScanTaskJob implements ShouldQueue
             ]);
 
             return;
+        }
+
+        $workspace = $scan->workspace_path;
+
+        if (is_string($workspace) && is_dir($workspace) && (($repository->meta['surface_scan_id'] ?? null) !== $scan->id)) {
+            AppSurfaceCatalog::remember($repository, $workspace, $scan->id);
+            $repository->refresh();
         }
 
         $scanner = $registry->get($task->type);

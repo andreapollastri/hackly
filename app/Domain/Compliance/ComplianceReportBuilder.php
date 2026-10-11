@@ -23,9 +23,9 @@ class ComplianceReportBuilder
     /**
      * @return array<string, mixed>
      */
-    public function build(ComplianceFramework $framework, ?array $evidence = null): array
+    public function build(ComplianceFramework $framework, ?array $evidence = null, ?ComplianceSubject $subject = null): array
     {
-        $evidence ??= $this->evidence();
+        $evidence ??= $this->evidence($subject);
         $controls = array_map(
             fn (array $control): array => $this->assess($control, $evidence),
             ComplianceCatalog::controls($framework),
@@ -53,9 +53,9 @@ class ComplianceReportBuilder
      *
      * @return list<array<string, mixed>>
      */
-    public function summaries(?array $evidence = null): array
+    public function summaries(?array $evidence = null, ?ComplianceSubject $subject = null): array
     {
-        $evidence ??= $this->evidence();
+        $evidence ??= $this->evidence($subject);
 
         return array_map(function (ComplianceFramework $framework) use ($evidence): array {
             $report = $this->build($framework, $evidence);
@@ -120,9 +120,11 @@ class ComplianceReportBuilder
     /**
      * @return array<string, mixed>
      */
-    public function evidence(): array
+    public function evidence(?ComplianceSubject $subject = null): array
     {
-        $findings = Finding::query()
+        $subject ??= ComplianceSubject::all();
+
+        $findings = $subject->constrainFindings(Finding::query())
             ->issues()
             ->with(['asset:id,value', 'repository:id,full_name'])
             ->get([
@@ -130,14 +132,16 @@ class ComplianceReportBuilder
                 'source', 'status', 'cve',
             ]);
 
-        $completedTasks = ScanTask::query()
-            ->where('status', ScanTaskStatus::Completed)
+        $completedTasks = $subject->constrainScanTasks(
+            ScanTask::query()->where('status', ScanTaskStatus::Completed)
+        )
             ->distinct()
             ->pluck('type')
             ->map(fn ($type) => $type instanceof \BackedEnum ? $type->value : (string) $type)
             ->merge(
-                RepoScanTask::query()
-                    ->where('status', ScanTaskStatus::Completed)
+                $subject->constrainRepoScanTasks(
+                    RepoScanTask::query()->where('status', ScanTaskStatus::Completed)
+                )
                     ->distinct()
                     ->pluck('type')
                     ->map(fn ($type) => $type instanceof \BackedEnum ? $type->value : (string) $type)
@@ -146,13 +150,13 @@ class ComplianceReportBuilder
             ->values()
             ->all();
 
-        $lastTarget = Scan::query()->where('status', ScanStatus::Completed)->max('finished_at');
-        $lastRepo = RepoScan::query()->where('status', ScanStatus::Completed)->max('finished_at');
+        $lastTarget = $subject->constrainScans(Scan::query()->where('status', ScanStatus::Completed))->max('finished_at');
+        $lastRepo = $subject->constrainRepoScans(RepoScan::query()->where('status', ScanStatus::Completed))->max('finished_at');
         $last = collect([$lastTarget, $lastRepo])->filter()->map(fn ($at) => Carbon::parse($at))->sort()->last();
 
-        $targets = Asset::query()->count();
-        $verified = Asset::query()->whereNotNull('verified_at')->count();
-        $repositories = Repository::query()->count();
+        $targets = $subject->constrainAssets(Asset::query())->count();
+        $verified = $subject->constrainAssets(Asset::query())->whereNotNull('verified_at')->count();
+        $repositories = $subject->constrainRepositories(Repository::query())->count();
 
         return [
             'findings' => $findings,
@@ -161,8 +165,9 @@ class ComplianceReportBuilder
             'targets' => $targets,
             'verified_targets' => $verified,
             'repositories' => $repositories,
-            'has_scans' => Scan::query()->exists() || RepoScan::query()->exists(),
+            'has_scans' => $subject->constrainScans(Scan::query())->exists() || $subject->constrainRepoScans(RepoScan::query())->exists(),
             'scope' => [
+                'subject' => $subject->payload(),
                 'targets' => $targets,
                 'verified_targets' => $verified,
                 'repositories' => $repositories,

@@ -36,7 +36,7 @@ class RepositoriesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('full_name')
-            ->description('Linked repositories can be scanned together with this target (“Also scan linked repositories”).')
+            ->description('Link the repository that deploys here. Compliance then scores them together, and DAST and penetration tests cover that code.')
             ->recordUrl(fn (Repository $record): string => RepositoryResource::getUrl('view', ['record' => $record]))
             ->columns([
                 TextColumn::make('full_name')

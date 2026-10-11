@@ -36,7 +36,7 @@ class AssetsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('value')
-            ->description('Verified linked targets can be deep-scanned together with this repository, including live Laravel probes.')
+            ->description('Link the domain where this code runs. Compliance shows them as one row, and scans cover both.')
             ->recordUrl(fn (Asset $record): string => AssetResource::getUrl('view', ['record' => $record]))
             ->columns([
                 TextColumn::make('value')

@@ -6,6 +6,7 @@
 
 @php($posture = $report['posture'])
 **Grade:** {{ $posture['grade'] ?? '—' }} ({{ $posture['score'] }}/100)
+**Scope:** {{ $posture['subject']['label'] ?? 'All' }}
 
 {{ $posture['method'] }}
 

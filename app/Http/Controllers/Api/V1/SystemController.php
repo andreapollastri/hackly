@@ -3,21 +3,30 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Compliance\CiGate;
+use App\Domain\Compliance\ComplianceSubject;
 use App\Domain\Compliance\PostureScore;
 use App\Domain\Digest\WeeklyDigest;
 use App\Domain\Scanning\Services\ScannerDatabaseUpdater;
 use App\Enums\ScanProfile;
 use App\Support\ScannerHealth;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use InvalidArgumentException;
 
 class SystemController extends ApiController
 {
-    public function posture(PostureScore $posture): JsonResponse
+    public function posture(Request $request, PostureScore $posture): JsonResponse
     {
-        return response()->json(['data' => $posture->snapshot()]);
+        try {
+            $subject = ComplianceSubject::fromKey($request->query('subject'));
+        } catch (ModelNotFoundException|InvalidArgumentException) {
+            $this->fail('Unknown subject. Use a target, a repository, or a linked pair.', 404);
+        }
+
+        return response()->json(['data' => $posture->snapshot(subject: $subject)]);
     }
 
     public function digest(WeeklyDigest $digest): JsonResponse

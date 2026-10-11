@@ -73,8 +73,11 @@ paths:
     get:
       tags: [Workspace]
       summary: Security posture score
+      parameters:
+        - $ref: '#/components/parameters/subject'
       responses:
         '200': { description: Score, grade, open counts }
+        '404': { description: Unknown subject }
   /v1/digest:
     get:
       tags: [Workspace]
@@ -127,18 +130,22 @@ paths:
     get:
       tags: [Compliance]
       summary: Framework summaries
-      description: Evidence packs, not certifications.
+      description: Evidence packs, not certifications. Omit subject for the whole workspace.
+      parameters:
+        - $ref: '#/components/parameters/subject'
       responses:
         '200': { description: Scores for every mapped framework }
+        '404': { description: Unknown subject }
   /v1/compliance/{framework}:
     get:
       tags: [Compliance]
       summary: One framework report as JSON
       parameters:
         - $ref: '#/components/parameters/framework'
+        - $ref: '#/components/parameters/subject'
       responses:
         '200': { description: Controls and evidence }
-        '404': { description: Unknown framework }
+        '404': { description: Unknown framework or subject }
   /v1/compliance/{framework}/report/{format}:
     get:
       tags: [Compliance]
@@ -146,12 +153,15 @@ paths:
       parameters:
         - $ref: '#/components/parameters/framework'
         - $ref: '#/components/parameters/format'
+        - $ref: '#/components/parameters/subject'
       responses:
         '200': { description: PDF or Markdown }
   /v1/reports/posture:
     get:
       tags: [Compliance]
       summary: Posture report as JSON
+      parameters:
+        - $ref: '#/components/parameters/subject'
       responses:
         '200': { description: Posture document }
   /v1/reports/posture/{format}:
@@ -160,6 +170,7 @@ paths:
       summary: Download the posture report
       parameters:
         - $ref: '#/components/parameters/format'
+        - $ref: '#/components/parameters/subject'
       responses:
         '200': { description: PDF or Markdown }
   /v1/targets:
@@ -532,6 +543,7 @@ paths:
     post:
       tags: [Penetration tests]
       summary: Create a penetration test
+      description: Optional repository_ids links those repositories to the target. The run scans that code and the routes learned from it.
       responses:
         '201': { description: Engagement. URLs must stay on the authorized target. }
   /v1/penetration-tests/{pentest}:
@@ -577,7 +589,7 @@ paths:
     post:
       tags: [Penetration tests]
       summary: Start the penetration test
-      description: Consumes the DNS authorization. Tasks include Nuclei, ZAP, Nikto and WPScan across the authorized host.
+      description: Consumes the DNS authorization. Tasks include Nuclei, ZAP, Nikto and WPScan across the authorized host, plus a deep scan of each linked repository.
       parameters:
         - $ref: '#/components/parameters/pentest'
       responses:
@@ -774,6 +786,12 @@ components:
       name: credential
       required: true
       schema: { type: string, format: uuid }
+    subject:
+      in: query
+      name: subject
+      required: false
+      schema: { type: string }
+      description: Omit for every target and repository. Otherwise target:{uuid}, repository:{uuid}, or pair:{targetUuid}:{repositoryUuid} when the two are linked.
     pentest:
       in: path
       name: pentest

@@ -21,21 +21,22 @@ class PostureScore
     /**
      * @return array<string, mixed>
      */
-    public function snapshot(bool $includeCompliance = true): array
+    public function snapshot(bool $includeCompliance = true, ?ComplianceSubject $subject = null): array
     {
-        $open = $this->counts(FindingStatus::Open);
-        $ack = $this->counts(FindingStatus::Ack);
+        $subject ??= ComplianceSubject::all();
+        $open = $this->counts(FindingStatus::Open, $subject);
+        $ack = $this->counts(FindingStatus::Ack, $subject);
 
-        $targets = Asset::query()->count();
-        $verified = Asset::query()->whereNotNull('verified_at')->count();
-        $repositories = Repository::query()->count();
+        $targets = $subject->constrainAssets(Asset::query())->count();
+        $verified = $subject->constrainAssets(Asset::query())->whereNotNull('verified_at')->count();
+        $repositories = $subject->constrainRepositories(Repository::query())->count();
 
-        $lastTarget = Scan::query()->where('status', ScanStatus::Completed)->max('finished_at');
-        $lastRepo = RepoScan::query()->where('status', ScanStatus::Completed)->max('finished_at');
+        $lastTarget = $subject->constrainScans(Scan::query()->where('status', ScanStatus::Completed))->max('finished_at');
+        $lastRepo = $subject->constrainRepoScans(RepoScan::query()->where('status', ScanStatus::Completed))->max('finished_at');
         $last = collect([$lastTarget, $lastRepo])->filter()->map(fn ($at) => Carbon::parse($at))->sort()->last();
 
-        $running = Scan::query()->whereIn('status', ScanStatus::active())->count()
-            + RepoScan::query()->whereIn('status', ScanStatus::active())->count();
+        $running = $subject->constrainScans(Scan::query()->whereIn('status', ScanStatus::active()))->count()
+            + $subject->constrainRepoScans(RepoScan::query()->whereIn('status', ScanStatus::active()))->count();
 
         $score = 100;
         $score -= min(60, $open['high'] * 15);
@@ -56,6 +57,7 @@ class PostureScore
             'score' => $score,
             'grade' => ComplianceReportBuilder::grade($score),
             'method' => self::METHOD,
+            'subject' => $subject->payload(),
             'open' => $open,
             'acknowledged' => $ack,
             'assets' => [
@@ -65,15 +67,15 @@ class PostureScore
             ],
             'scans' => [
                 'running' => $running,
-                'last_30_days' => Scan::query()->where('created_at', '>=', now()->subDays(30))->count()
-                    + RepoScan::query()->where('created_at', '>=', now()->subDays(30))->count(),
+                'last_30_days' => $subject->constrainScans(Scan::query()->where('created_at', '>=', now()->subDays(30)))->count()
+                    + $subject->constrainRepoScans(RepoScan::query()->where('created_at', '>=', now()->subDays(30)))->count(),
                 'last_completed_at' => $last?->toIso8601String(),
                 'stale' => $stale,
             ],
         ];
 
         if ($includeCompliance) {
-            $payload['compliance'] = $this->compliance->summaries();
+            $payload['compliance'] = $this->compliance->summaries(subject: $subject);
         }
 
         return $payload;
@@ -82,9 +84,9 @@ class PostureScore
     /**
      * @return array{high: int, medium: int, low: int}
      */
-    private function counts(FindingStatus $status): array
+    private function counts(FindingStatus $status, ComplianceSubject $subject): array
     {
-        $counts = Finding::query()
+        $counts = $subject->constrainFindings(Finding::query())
             ->issues()
             ->reorder()
             ->where('status', $status)

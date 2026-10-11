@@ -23,7 +23,7 @@
     </div>
     <div class="disclaimer">{{ $report['disclaimer'] }}</div>
     @php($posture = $report['posture'])
-    <p class="score">{{ $posture['grade'] ?? '—' }} <span style="font-size:14px;color:#64748b;">{{ $posture['score'] }}/100</span></p>
+    <p class="score">{{ $posture['grade'] ?? '—' }} <span style="font-size:14px;color:#64748b;">{{ $posture['score'] }}/100 · {{ $posture['subject']['label'] ?? 'All' }}</span></p>
     <p>{{ $posture['method'] }}</p>
     <table>
         <tr><th>Open high</th><td>{{ $posture['open']['high'] }}</td><th>Open medium</th><td>{{ $posture['open']['medium'] }}</td></tr>

@@ -1260,6 +1260,34 @@
     gap: 1rem;
 }
 
+.hk-compliance__filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.hk-compliance__filter label {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.hk-compliance__filter select {
+    min-width: 18rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--hk-border);
+    border-radius: 0.5rem;
+    background: var(--hk-surface);
+    color: var(--hk-text);
+}
+
+.hk-compliance__filter span,
+.hk-compliance__score em {
+    color: var(--hk-muted);
+    font-size: 0.875rem;
+    font-style: normal;
+}
+
 .hk-compliance__score {
     display: flex;
     align-items: baseline;
