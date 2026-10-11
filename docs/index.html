@@ -645,6 +645,25 @@
       color: var(--ink);
     }
 
+    table.docs-table.compare {
+      min-width: 52rem;
+    }
+
+    table.docs-table.compare td {
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      color: var(--ink-soft);
+      white-space: normal;
+    }
+
+    table.docs-table.compare td:first-child {
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
     /* Product shots */
     .hero-shot {
       position: relative;
@@ -1289,6 +1308,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
         <strong>On this page</strong>
         <ol>
           <li><a href="#doc-overview">Overview</a></li>
+          <li><a href="#doc-compare">Comparison</a></li>
           <li><a href="#doc-requirements">Requirements</a></li>
           <li><a href="#doc-binaries">Scanner binaries</a></li>
           <li><a href="#doc-usage">Targets</a></li>
@@ -1313,7 +1333,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           <p class="section-kicker">Documentation</p>
           <h2 class="section-title">Reference</h2>
           <p class="section-lead" style="margin-bottom:0">
-            Targets, repositories, how a link between them changes DAST and penetration tests, compliance scope, profiles, CLI, and the ownership-first security model.
+            Targets, repositories, how a link between them changes DAST and penetration tests, compliance scope, profiles, CLI, the ownership-first security model, and an honest look at Aikido, Detectify and the tools around them.
           </p>
         </header>
 
@@ -1341,6 +1361,130 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
             running for scans to execute. Linking is optional — each side can still be scanned
             on its own. When you do link them, DAST, penetration tests and compliance use the pair.
           </p>
+        </article>
+
+        <article class="doc-block" id="doc-compare">
+          <h3>Compared with other tools</h3>
+          <p>
+            Hackly is a self-hosted orchestrator for the domains and GitHub repositories a Laravel team already operates.
+            <a class="link-inline" href="https://www.aikido.dev/" target="_blank" rel="noopener">Aikido</a>,
+            <a class="link-inline" href="https://detectify.com/" target="_blank" rel="noopener">Detectify</a>,
+            Snyk, Semgrep, GitHub Advanced Security and DefectDojo overlap with it and then diverge.
+            This is a fit comparison, written from Hackly's side. It is not a scan-off. The commercial products move faster than this page.
+          </p>
+          <div class="callout">
+            Read against the public pages in October 2026:
+            <a class="link-inline" href="https://www.aikido.dev/platform" target="_blank" rel="noopener">Aikido's platform</a>,
+            <a class="link-inline" href="https://www.aikido.dev/pricing" target="_blank" rel="noopener">Aikido pricing</a>,
+            and <a class="link-inline" href="https://detectify.com/" target="_blank" rel="noopener">Detectify</a>.
+            Modules and plan limits change. Those pages say what a subscription includes today.
+          </div>
+
+          <h4>Aikido</h4>
+          <p>
+            Aikido is a commercial application-security platform. One product covers SAST across major languages, dependency scanning with reachability, secrets, malware and license risk in open source, infrastructure as code, containers, cloud posture, dynamic testing including authenticated DAST, API discovery and fuzzing, attack-surface monitoring, AI pentesting, autofix pull requests, and runtime protection. There is a free tier. Local scanning and a full on-prem deployment exist on paid and government plans. The default is hosted: Aikido clones repositories into short-lived environments, scans them, and throws the clone away.
+          </p>
+          <p>
+            On the things that make a security platform, Aikido is ahead. It covers languages a PHP ruleset and a set of Laravel checks do not. It opens a pull request with a proposed fix. Hackly can copy a finding as a prompt, and the repository stays as it was. Aikido looks at cloud accounts, Kubernetes, containers and runtime traffic. Hackly does not see AWS, GCP, Azure or a cluster. Authenticated DAST and API fuzzing are products there. A Hackly penetration test can submit one declared test account, once, on a host that just passed a fresh DNS check. Aikido reports inside CI. Hackly runs when someone starts a scan: there is no pull-request check and no recurring scan schedule.
+          </p>
+          <p>
+            Noise handling is smaller here on purpose. Findings are deduplicated across tools, some unreachable PHP dependencies are marked, and placeholder secrets are dropped. That is a heuristic for Laravel apps, not a general false-positive engine. Aikido advertises aggressive noise reduction. This page does not repeat that as a measured result.
+          </p>
+          <p>
+            Part of Aikido's surface testing is Nuclei-based. Hackly runs Nuclei too, along with nmap, OWASP ZAP, Nikto and WPScan. The engines are not the difference. The difference is everything wrapped around them, and whose machine the job runs on.
+          </p>
+          <p>
+            Hackly is the tighter fit when the findings have to stay on a server you administer and the apps are Laravel. The license is MIT. Findings, GitHub tokens and raw scanner output stay there. You pay with the host, the binaries and a queue worker. Every domain scan waits for a DNS TXT record that proves control of that name. Aikido's attack-surface module watches assets you connect. Hackly refuses a hostname you cannot publish DNS for. That gate is the reason the tool exists, and it is a limitation when the asset is a tenant you do not control.
+          </p>
+          <p>
+            Repository scanning is aimed at PHP and Laravel: Composer audit, OSV, abandoned packages, Laravel outside security support, the Checkpoint checks, Semgrep with <code>p/php</code>, Trivy and Gitleaks. A Python or Go monorepo gets a thin result. The external scan is rate-limited on purpose, so a deep run is slow. Aikido's hosted DAST is faster to turn on, and nobody installs ZAP.
+          </p>
+          <p>
+            The compliance pages score evidence from findings Hackly already stored. They are a worksheet for an auditor. They are not a certification, and they do not collect policies, vendors or access reviews. Aikido is not that product either.
+          </p>
+
+          <h4>Detectify</h4>
+          <p>
+            <a class="link-inline" href="https://detectify.com/" target="_blank" rel="noopener">Detectify</a> is a hosted attack-surface and application-testing platform. Surface Monitoring keeps a map of domains, subdomains, addresses, technologies and ports, and tests what it finds. Application Scanning is authenticated DAST, with crawling and payload fuzzing. API Scanning covers REST and GraphQL. Internal Scanning reaches systems off the public internet. PCI ASV scanning is an approved-scanning-vendor test for PCI DSS. The payloads come from Detectify's research and a crowdsourced community of hackers, including a large catalogue of subdomain-takeover checks. They say most of what they report never receives a CVE. That is their research claim. Hackly has not reproduced it.
+          </p>
+          <p>
+            If the job is the public internet, watched continuously, with payloads written by people who look for bugs, Detectify is the specialist. Hackly is not in that race. Subdomain discovery here is a wordlist, certificate-transparency logs and takeover fingerprints. Nothing watches for a new hostname appearing tomorrow, and nothing fuzzes an API the way a dedicated engine does. A penetration test is one authorized run, with one login, then a cooldown. Detectify's application scanning is built to keep going, authenticated, across the surface.
+          </p>
+          <p>
+            Detectify does not take the repository half of this app. There is no Semgrep, Trivy, Gitleaks or Composer audit in that product, and no Laravel-specific code checks. The service runs on their side. Hackly's PCI DSS page is one of the evidence packs in Compliance. It is not an ASV scan, and a bank that asked for an ASV will not accept it. Use Detectify, or another ASV, when that is the requirement.
+          </p>
+          <p>
+            The two can sit side by side. Detectify on the public surface you want watched every day. Hackly on the GitHub repository, and on the hosts where you can prove DNS and you want the raw Nuclei, ZAP and Composer output on your own disk. Intruder and Probely sit in the same hosted-external neighbourhood: someone else's payloads, no Laravel SAST.
+          </p>
+          <p>
+            Choosing between Aikido and Detectify is a separate question. Aikido is the wide platform, from the pull request to the cloud account. Detectify is the external-testing specialist. Hackly is the small self-hosted one. A team that already pays for one of the first two can still want the property Hackly actually has: the scanner output, and the GitHub token, stay on a machine they run.
+          </p>
+
+          <h4>The rest of the neighbourhood</h4>
+          <div class="table-wrap">
+            <table class="docs-table compare">
+              <thead>
+                <tr>
+                  <th>Tool</th>
+                  <th>What it is for</th>
+                  <th>Ahead of Hackly</th>
+                  <th>Where Hackly still fits</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Aikido</td>
+                  <td>Hosted platform from code through cloud to runtime. Free tier, paid modules, on-prem on higher plans.</td>
+                  <td>Many languages, autofix pull requests, cloud and containers, authenticated DAST, API fuzzing, CI.</td>
+                  <td>Your own server, a hard DNS ownership gate, a Laravel and PHP stack you can read.</td>
+                </tr>
+                <tr>
+                  <td>Detectify</td>
+                  <td>Hosted continuous attack surface, authenticated DAST, API fuzzing, PCI ASV.</td>
+                  <td>Asset discovery, payload research, subdomain takeover, testing that keeps running.</td>
+                  <td>Repository scanning, a self-hosted history, scans that cannot start without DNS proof.</td>
+                </tr>
+                <tr>
+                  <td>Snyk</td>
+                  <td>Commercial developer security: dependencies, SAST, containers, IaC, licenses, fix pull requests.</td>
+                  <td>Remediation across package ecosystems, and a workflow developers already live in. Analysis runs at Snyk unless you put a broker in front.</td>
+                  <td>Ports, TLS, mail and ZAP against a host you verified. Snyk is a poor substitute for that. Hackly is a poor substitute for Snyk's fix pull requests.</td>
+                </tr>
+                <tr>
+                  <td>Semgrep</td>
+                  <td>SAST, secrets and supply chain, with custom rules and pull-request comments.</td>
+                  <td>The rules, the assistant, and languages other than PHP. Hackly shells out to the Semgrep CLI.</td>
+                  <td>Semgrep is one task inside a scan that also runs ZAP, Nuclei and Composer. Pointing <code>HACKLY_SEMGREP_CONFIG</code> at another ruleset does not turn this app into Semgrep's platform.</td>
+                </tr>
+                <tr>
+                  <td>GitHub Advanced Security</td>
+                  <td>CodeQL, Dependabot, secret scanning and push protection, on the pull request.</td>
+                  <td>The merge gate, with no extra server to run. It does not probe the deployed host or store a DNS ownership check.</td>
+                  <td>The host you operate. Hackly never posts a check on the pull request. Using both is a coherent setup: GitHub on the merge, Hackly on the domain.</td>
+                </tr>
+                <tr>
+                  <td>SonarQube</td>
+                  <td>Quality gate and security hotspots. A self-hosted edition exists.</td>
+                  <td>Blocking a build, code quality, and broader language support.</td>
+                  <td>Anything about the running site: ports, mail, TLS, Nuclei, ZAP. SonarQube has none of that picture.</td>
+                </tr>
+                <tr>
+                  <td>DefectDojo</td>
+                  <td>Open-source system of record. Imports from many scanners, with engagements, SLAs and client reports.</td>
+                  <td>Tracking a pentest program over years. It will not verify DNS and then run this pipeline.</td>
+                  <td>The scan itself. Triage here is four states and a note, which is enough for one team and thin for a consultancy.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>What this page will not pretend</h4>
+          <ul>
+            <li>Hackly orchestrates nmap, Nuclei, ZAP, Nikto, WPScan, Semgrep, Trivy, Gitleaks, Checkov and Composer. Those projects own the detection. Hackly owns the queue, the history, triage that survives the next scan, the link between a domain and a repository, and the DNS gate.</li>
+            <li>A one-off Nuclei run does not need this application installed.</li>
+            <li>A human penetration test, a GRC suite, a WAF and a cloud-posture product remain separate purchases. The compliance score is not any of those.</li>
+            <li>SAST here is PHP-shaped. Semgrep starts from <code>p/php</code>. Checkpoint and the Laravel checks assume a Laravel tree. Other stacks are second-class, and saying otherwise would be advertising.</li>
+          </ul>
         </article>
 
         <article class="doc-block" id="doc-requirements">
