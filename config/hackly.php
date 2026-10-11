@@ -407,7 +407,8 @@ return [
     | Penetration tests
     |--------------------------------------------------------------------------
     |
-    | Each run needs a fresh DNS TXT check. The scan covers the whole authorized
+    | A DNS-verified target can start immediately. A fresh TXT is only required
+    | when that standing check is missing. The scan covers the whole authorized
     | host, and also the API, login URLs, extra URLs and ports declared on it.
     |
     */

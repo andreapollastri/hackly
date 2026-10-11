@@ -1107,7 +1107,7 @@
       <p class="section-kicker">Coverage</p>
       <h2 class="section-title">Targets and repos.<br>Same control plane.</h2>
       <p class="section-lead">
-        DAST for verified targets, SAST/SCA for GitHub clones, a penetration test that needs a fresh
+        DAST for verified targets, SAST/SCA for GitHub clones, a penetration test that reuses that
         DNS check, and compliance packs scored from those scans. Link a domain to its repository
         and Hackly treats them as one application.
       </p>
@@ -1295,7 +1295,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           <span class="n">03</span>
           <div>
             <h3>Scan, then triage</h3>
-            <p>Target DAST, repository SAST / SCA, or both via a linked app. Penetration tests need a fresh DNS check. Compliance scores what those scans already found. Work the Findings list from High to Low.</p>
+            <p>Target DAST, repository SAST / SCA, or both via a linked app. A penetration test uses the target's existing DNS verification. Compliance scores what those scans already found. Work the Findings list from High to Low.</p>
           </div>
         </div>
       </div>
@@ -1353,7 +1353,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
    ├─ Scan (DAST)                         ├─ RepoScan
    │    uses routes from the last clone   │    remembers those routes
    ├─ Penetration test                    │
-   │    new TXT + deep scan of linked code│
+   │    standing DNS + deep linked scan   │
    └─ Compliance subject                  └─ same line when the two are linked</pre>
           </div>
           <p style="margin-top:1rem">
@@ -1385,7 +1385,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
             Aikido is a commercial application-security platform. One product covers SAST across major languages, dependency scanning with reachability, secrets, malware and license risk in open source, infrastructure as code, containers, cloud posture, dynamic testing including authenticated DAST, API discovery and fuzzing, attack-surface monitoring, AI pentesting, autofix pull requests, and runtime protection. There is a free tier. Local scanning and a full on-prem deployment exist on paid and government plans. The default is hosted: Aikido clones repositories into short-lived environments, scans them, and throws the clone away.
           </p>
           <p>
-            On the things that make a security platform, Aikido is ahead. It covers languages a PHP ruleset and a set of Laravel checks do not. It opens a pull request with a proposed fix. Hackly can copy a finding as a prompt, and the repository stays as it was. Aikido looks at cloud accounts, Kubernetes, containers and runtime traffic. Hackly does not see AWS, GCP, Azure or a cluster. Authenticated DAST and API fuzzing are products there. A Hackly penetration test can submit one declared test account, once, on a host that just passed a fresh DNS check. Aikido reports inside CI. Hackly runs when someone starts a scan: there is no pull-request check and no recurring scan schedule.
+            On the things that make a security platform, Aikido is ahead. It covers languages a PHP ruleset and a set of Laravel checks do not. It opens a pull request with a proposed fix. Hackly can copy a finding as a prompt, and the repository stays as it was. Aikido looks at cloud accounts, Kubernetes, containers and runtime traffic. Hackly does not see AWS, GCP, Azure or a cluster. Authenticated DAST and API fuzzing are products there. A Hackly penetration test can submit one declared test account, once, on a host whose target is already DNS-verified. Aikido reports inside CI. Hackly runs when someone starts a scan: there is no pull-request check and no recurring scan schedule.
           </p>
           <p>
             Noise handling is smaller here on purpose. Findings are deduplicated across tools, some unreachable PHP dependencies are marked, and placeholder secrets are dropped. That is a heuristic for Laravel apps, not a general false-positive engine. Aikido advertises aggressive noise reduction. This page does not repeat that as a measured result.
@@ -1741,11 +1741,11 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
           <h3>Penetration tests</h3>
           <p>
             <strong>Attack surface → Penetration tests</strong> is an engagement, not a profile on Start scan.
-            The target must already be DNS-verified and active. Each run then needs a <strong>new</strong> TXT
-            record, <code>hackly-pentest=</code>, on that same host. It lasts
-            <code>HACKLY_PENTEST_AUTH_MINUTES</code> (30) and is consumed when the test starts.
-            Issue another one for the next run. There is a cooldown of
-            <code>HACKLY_PENTEST_COOLDOWN_HOURS</code> (6) per target.
+            The target must already be DNS-verified and active. That standing check is the authorization:
+            start the test without publishing another TXT record, and without asking anyone to change DNS for this run.
+            A fresh <code>hackly-pentest=</code> record is only required when the target is not already verified.
+            That extra token lasts <code>HACKLY_PENTEST_AUTH_MINUTES</code> (30) and is consumed when the test starts.
+            There is a cooldown of <code>HACKLY_PENTEST_COOLDOWN_HOURS</code> (6) per target.
           </p>
           <p>
             The authorization screen shows the <strong>scanner IP</strong> (the same address as the ordinary DNS check).
@@ -1767,9 +1767,9 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
             WPScan is forced only when the technology is WordPress, and it never receives a password list.
           </p>
           <div class="callout">
-            API: create the engagement, <code>POST …/authorization</code>, publish the TXT,
-            <code>POST …/authorization/check</code>, then <code>POST …/run</code>.
-            The payload includes <code>scanner_ip</code>. A second start with the same TXT is rejected.
+            API: create the engagement, then <code>POST …/run</code> when the target is already DNS-verified.
+            <code>POST …/authorization</code> and <code>POST …/authorization/check</code> are the fallback
+            for a target that has not passed that check. The payload includes <code>scanner_ip</code>.
           </div>
         </article>
 
@@ -1919,7 +1919,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 </tr>
                 <tr>
                   <td class="strong">Penetration test</td>
-                  <td>Penetration tests, after a fresh TXT</td>
+                  <td>Penetration tests. Start when the target is already verified</td>
                   <td class="mono">POST /api/v1/penetration-tests/{id}/run</td>
                 </tr>
               </tbody>
@@ -2152,7 +2152,7 @@ HACKLY_CHECKOV=checkov
           <h3>Security model</h3>
           <ul>
             <li><strong>Target</strong> scans require <strong>ownership verification</strong> (DNS TXT). The scanner IP is shown on that screen</li>
-            <li><strong>Penetration tests</strong> keep that check and add a fresh TXT per run. It expires and is consumed on start. Declared URLs cannot leave the authorized host</li>
+            <li><strong>Penetration tests</strong> use that standing check. A second TXT is only required when the target is not already verified, and that token expires and is consumed on start. Declared URLs cannot leave the authorized host</li>
             <li><strong>Repository</strong> scans require a GitHub token with read access to that repo</li>
             <li>Linking targets and repositories is optional. Linked scans stay on those assets. WPScan does not guess passwords</li>
             <li>Optional <strong>allowlist</strong> and private-IP blocking for Targets</li>

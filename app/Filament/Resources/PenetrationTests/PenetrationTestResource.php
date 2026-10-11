@@ -78,7 +78,7 @@ class PenetrationTestResource extends Resource
                             : [];
                         $set('repository_ids', $ids ?? []);
                     })
-                    ->helperText('The target must already pass the standing DNS ownership check. Each run then asks for a new one.'),
+                    ->helperText('Only targets that already passed DNS ownership are listed. That check is enough to start the test. No second TXT record.'),
                 Select::make('repository_ids')
                     ->label('Linked repositories')
                     ->multiple()
@@ -150,13 +150,20 @@ class PenetrationTestResource extends Resource
                     ->state(fn (): string => app(ScannerEgress::class)->address() ?: 'Set HACKLY_EGRESS_IP')
                     ->helperText('Whitelist this address. DAST and penetration tests both leave from it.')
                     ->copyable(),
+                TextEntry::make('standing_authorization')
+                    ->label('DNS')
+                    ->state('This target is already verified. Start the test directly. Nobody needs to publish another TXT record.')
+                    ->visible(fn (PenetrationTest $record): bool => $record->usesStandingAuthorization())
+                    ->columnSpanFull(),
                 TextEntry::make('authorization_host')
                     ->label('TXT host')
-                    ->state(fn (PenetrationTest $record): string => (string) $record->asset?->value),
+                    ->state(fn (PenetrationTest $record): string => (string) $record->asset?->value)
+                    ->visible(fn (PenetrationTest $record): bool => ! $record->usesStandingAuthorization()),
                 TextEntry::make('authorization_token')
                     ->label('TXT value')
                     ->placeholder('Request a new authorization to get a token.')
-                    ->copyable(),
+                    ->copyable()
+                    ->visible(fn (PenetrationTest $record): bool => ! $record->usesStandingAuthorization()),
             ])->columns(2),
             Section::make('Scope')->schema([
                 TextEntry::make('asset.value')->label('Target'),
@@ -210,6 +217,7 @@ class PenetrationTestResource extends Resource
             ->label('New DNS authorization')
             ->icon(Heroicon::OutlinedShieldCheck)
             ->color('warning')
+            ->visible(fn (PenetrationTest $record): bool => ! $record->usesStandingAuthorization())
             ->requiresConfirmation()
             ->modalHeading('Request a new authorization')
             ->modalDescription('Publish the new TXT value, then confirm it. Starting the test consumes this check. The next run needs another one.')
@@ -231,7 +239,7 @@ class PenetrationTestResource extends Resource
         return Action::make('checkPentestAuthorization')
             ->label('Confirm DNS')
             ->icon(Heroicon::OutlinedCheckCircle)
-            ->visible(fn (PenetrationTest $record): bool => filled($record->authorization_token) && $record->authorization_consumed_at === null)
+            ->visible(fn (PenetrationTest $record): bool => ! $record->usesStandingAuthorization() && filled($record->authorization_token) && $record->authorization_consumed_at === null)
             ->action(function (PenetrationTest $record, Action $action): void {
                 try {
                     app(PentestAuthorizer::class)->check($record);
@@ -255,7 +263,9 @@ class PenetrationTestResource extends Resource
             ->visible(fn (PenetrationTest $record): bool => $record->isAuthorizationReady())
             ->requiresConfirmation()
             ->modalHeading('Start this penetration test?')
-            ->modalDescription('This authorization is consumed. The run covers the whole authorized host, the linked repositories, and the routes learned from that code.')
+            ->modalDescription(fn (PenetrationTest $record): string => $record->usesStandingAuthorization()
+                ? 'This target is already DNS-verified, so the run does not need another TXT record. It covers the whole authorized host, the linked repositories, and the routes learned from that code.'
+                : 'This authorization is consumed. The run covers the whole authorized host, the linked repositories, and the routes learned from that code.')
             ->modalSubmitActionLabel('Start')
             ->action(function (PenetrationTest $record, Action $action): void {
                 try {

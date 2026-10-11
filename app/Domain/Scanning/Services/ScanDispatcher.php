@@ -49,7 +49,7 @@ class ScanDispatcher
                 throw new InvalidArgumentException('This penetration test belongs to a different target.');
             }
         } elseif ($profile === ScanProfile::Pentest) {
-            throw new InvalidArgumentException('A penetration test starts from the Penetration tests section, after a fresh DNS authorization for that run.');
+            throw new InvalidArgumentException('A penetration test starts from the Penetration tests section.');
         }
 
         $this->guard->assertAllowed($asset);

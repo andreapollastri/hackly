@@ -549,7 +549,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/perPage'
       responses:
-        '200': { description: Engagement page. Each run needs a fresh DNS TXT. scanner_ip is the address to whitelist. }
+        '200': { description: Engagement page. A DNS-verified target can run without a fresh TXT. scanner_ip is the address to whitelist. }
     post:
       tags: [Penetration tests]
       summary: Create a penetration test
@@ -581,7 +581,7 @@ paths:
   /v1/penetration-tests/{pentest}/authorization:
     post:
       tags: [Penetration tests]
-      summary: Issue a fresh DNS authorization
+      summary: Issue a DNS authorization when the target is not already verified
       parameters:
         - $ref: '#/components/parameters/pentest'
       responses:
@@ -599,12 +599,12 @@ paths:
     post:
       tags: [Penetration tests]
       summary: Start the penetration test
-      description: Consumes the DNS authorization. Tasks include Nuclei, ZAP, Nikto and WPScan across the authorized host, plus a deep scan of each linked repository.
+      description: Starts the test. A target that already passed DNS ownership does not need a fresh TXT. Otherwise this consumes that authorization. Tasks include Nuclei, ZAP, Nikto and WPScan across the authorized host, plus a deep scan of each linked repository.
       parameters:
         - $ref: '#/components/parameters/pentest'
       responses:
         '201': { description: Scan queued }
-        '422': { description: Authorization missing, expired, or already used }
+        '422': { description: Target inactive, or a missing standing DNS check was not replaced by a fresh TXT }
   /v1/repo-scans:
     get:
       tags: [Scans]

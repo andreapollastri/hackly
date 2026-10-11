@@ -107,7 +107,7 @@ Compliance uses the same link. The scope menu shows a target alone, a repository
 
 **Attack surface → Penetration tests** is a separate engagement, not another radio button on Start scan.
 
-The target must already pass the standing DNS ownership check. Each run then asks for a **new** TXT record (`hackly-pentest=`). It is valid for 30 minutes and is consumed when the test starts. The next run needs another one. The scanner IP is on that screen — and on the ordinary DNS check — so it can be allowlisted.
+The target must already pass the standing DNS ownership check. That check is enough: a verified target starts without a second TXT record, so nobody has to publish a new one for the run. A fresh `hackly-pentest=` TXT is only required when the target is not already verified. It is valid for 30 minutes and is consumed when the test starts. The scanner IP is on that screen — and on the ordinary DNS check — so it can be allowlisted.
 
 You can record the stack, a Swagger / OpenAPI URL, login areas, other URLs, ports, notes, and one test account. Hackly uses that account for a single login. It does not guess passwords. The run still covers the whole authorized host: fingerprint, paths, TLS, the declared API and logins, ports, Nuclei (Laravel, PHP, frontends, Apache, Nginx, WordPress and others), WPScan, Nikto, and a longer ZAP pass. If `wpscan` or `nikto` is not installed, that task is skipped and the rest continues. There is a 6-hour cooldown per target.
 
@@ -239,7 +239,7 @@ Target (DNS-verified)                 Repository (GitHub token)
    ├─ Scan (DAST)                         ├─ Repository scan
    │    routes from the last repo scan    │    remembers routes for the next DAST
    ├─ Penetration test                    │
-   │    fresh DNS TXT + deep repo scan    │
+   │    standing DNS + deep repo scan     │
    └─ Compliance: All, or this subject    └─ same compliance line when linked
 ```
 
@@ -249,7 +249,7 @@ Target (DNS-verified)                 Repository (GitHub token)
 | Target + repositories | Target DAST **and** a scan of every linked repository. Offered on by default when a repository is linked |
 | Repository only | Clone + SAST / SCA / secrets / … — no DAST, no live pentest |
 | Repository + targets | Repository scan **and** a deep DAST scan of every linked, verified target. Offered on by default |
-| Penetration test | Fresh DNS TXT, then the whole host, plus a deep scan of each linked repository. Not a normal scan profile |
+| Penetration test | The target's standing DNS verification, then the whole host, plus a deep scan of each linked repository. Not a normal scan profile |
 
 Jobs run on the **database queue** (no Horizon needed). A queue worker must be running for scans to make progress — the scan page warns you when nothing has picked up a task.
 
@@ -305,7 +305,7 @@ Missing binaries make the tasks that need them **skip** — the rest of the scan
 3. **Check DNS** — once the token is found, the target is unlocked.
 4. **Start scan** — pick *Quick*, *Standard* or *Deep*. **Also scan linked repositories** is on when a repository is already linked.
 5. Follow the scan live, then triage its findings or export a PDF / Markdown report.
-6. **Penetration tests** is separate: declare scope, publish a new TXT for that run, then start it. The scanner IP on the DNS screen is the address to allowlist.
+6. **Penetration tests** is separate: declare scope, then start it. A target that is already DNS-verified does not need another TXT. The scanner IP on the DNS screen is the address to allowlist.
 
 ### GitHub repositories
 
@@ -331,7 +331,7 @@ Scans are always started on demand — there is no automatic recurring scan sche
 | Target + linked repositories | Start scan → *Also scan linked repositories* (on when linked) | `php artisan hackly:scan example.com --include-repos` |
 | Repository only | Scan now | `php artisan hackly:repo-scan owner/repo` |
 | Repository + linked targets | Scan now → *Also deep-scan linked targets* (on when a target is verified) | `php artisan hackly:repo-scan owner/repo --include-targets` |
-| Penetration test | Penetration tests → new DNS TXT → Start | API `POST /api/v1/penetration-tests/{id}/run` after authorization |
+| Penetration test | Penetration tests → Start, when the target is already verified | API `POST /api/v1/penetration-tests/{id}/run` |
 | Compliance pack | Compliance → scope → PDF or Markdown | `GET /api/v1/compliance/{framework}/report/pdf` |
 
 ### Commands
@@ -444,7 +444,7 @@ Marking a finding `false_positive` requires `note` (at least 8 characters). `POS
 
 `GET /api/v1/compliance` and `GET /api/v1/posture` accept `subject`. Omit it for the whole workspace. Otherwise use `target:{uuid}`, `repository:{uuid}`, or `pair:{targetUuid}:{repositoryUuid}` when those two are linked. The same parameter is on the PDF and Markdown report routes.
 
-Penetration tests: `POST /api/v1/penetration-tests` (optional `repository_ids` links that code to the target), then `POST …/authorization`, `POST …/authorization/check`, then `POST …/run`. The response includes `scanner_ip` for the allowlist. A run without a fresh, unused TXT is rejected.
+Penetration tests: `POST /api/v1/penetration-tests` (optional `repository_ids` links that code to the target), then `POST …/run` when the target is already DNS-verified. `POST …/authorization` and `POST …/authorization/check` are only for a target that has not passed that check. The response includes `scanner_ip` for the allowlist.
 
 ## Weekly digest
 
@@ -453,7 +453,7 @@ Sunday at 08:00, every user gets an email of the last seven days: posture, open 
 ## Security model
 
 - **Target** scans require DNS TXT **ownership verification**. The scanner IP is shown there so it can be allowlisted
-- **Penetration tests** keep that check, and each run needs its own TXT. It expires after 30 minutes and is consumed on start
+- **Penetration tests** use that same standing check. A second TXT is required only when the target is not already verified. That extra token expires after 30 minutes and is consumed on start
 - **Repository** scans require a GitHub token with read access to that repository
 - Linking targets ↔ repositories is optional. When you do link them, DAST, penetration tests and compliance use that pair
 - Optional **allowlist** and private / internal IP blocking for targets

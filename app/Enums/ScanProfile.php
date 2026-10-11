@@ -25,7 +25,7 @@ enum ScanProfile: string implements HasColor, HasDescription, HasIcon, HasLabel
 
     /**
      * Profiles offered by the normal "Start scan" action.
-     * Penetration tests start from their own engagement, after a fresh DNS check.
+     * Penetration tests start from their own engagement. A DNS-verified target needs no second check.
      *
      * @return array<string, string>
      */
@@ -73,7 +73,7 @@ enum ScanProfile: string implements HasColor, HasDescription, HasIcon, HasLabel
             self::Quick => 'DNS, mail security, TLS, top ports and tech fingerprint. A few minutes.',
             self::Standard => 'Quick + subdomains, origin exposure, path discovery and Nuclei templates.',
             self::Deep => 'Standard + OWASP ZAP baseline. Slowest — subject to a cooldown between runs.',
-            self::Pentest => 'Fresh DNS authorization, then scoped ports, the declared API and login, technology exposures, Nuclei and a longer ZAP run.',
+            self::Pentest => 'Uses the target DNS verification already on file, then scoped ports, the declared API and login, technology exposures, Nuclei and a longer ZAP run.',
         };
     }
 

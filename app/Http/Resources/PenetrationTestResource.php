@@ -34,6 +34,7 @@ class PenetrationTestResource extends JsonResource
             'authorization' => [
                 'state' => $pentest->authorizationLabel(),
                 'ready' => $pentest->isAuthorizationReady(),
+                'standing' => $pentest->usesStandingAuthorization(),
                 'record_type' => 'TXT',
                 'host' => $pentest->asset?->value,
                 'token' => $pentest->authorization_token,

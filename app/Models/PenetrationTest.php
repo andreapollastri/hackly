@@ -60,8 +60,23 @@ class PenetrationTest extends Model
         return $this->hasMany(Scan::class)->latest('created_at');
     }
 
+    /**
+     * The target already passed the standing DNS ownership check, so this run
+     * does not need its own TXT record.
+     */
+    public function usesStandingAuthorization(): bool
+    {
+        $this->loadMissing('asset');
+
+        return $this->asset?->isVerified() === true && $this->asset?->isActive() === true;
+    }
+
     public function authorizationLabel(): string
     {
+        if ($this->usesStandingAuthorization()) {
+            return 'Covered by target';
+        }
+
         if (blank($this->authorization_token)) {
             return 'Not requested';
         }
@@ -85,6 +100,10 @@ class PenetrationTest extends Model
 
     public function isAuthorizationReady(): bool
     {
+        if ($this->usesStandingAuthorization()) {
+            return true;
+        }
+
         return $this->authorizationLabel() === 'Ready';
     }
 }
