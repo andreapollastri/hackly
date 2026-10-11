@@ -8,6 +8,7 @@ use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
+use Filament\Forms\Components\Textarea;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
 
@@ -64,16 +65,29 @@ class TriageActions
         $actions = [];
 
         foreach (self::transitions() as $target => $config) {
-            $actions[] = Action::make('triage_'.$target)
+            $action = Action::make('triage_'.$target)
                 ->label($config['label'])
                 ->icon($config['icon'])
                 ->color($config['color'])
                 ->visible(fn (?Finding $record): bool => $record !== null && in_array($record->status, $config['from'], true))
-                ->action(function (Finding $record) use ($target): void {
-                    $record->update(['status' => FindingStatus::from($target)]);
+                ->action(function (Finding $record, array $data) use ($target): void {
+                    $record->applyTriage(
+                        FindingStatus::from($target),
+                        $data['false_positive_note'] ?? null,
+                        auth()->id(),
+                    );
                 })
                 ->cancelParentActions($closesParent)
                 ->successNotificationTitle('Finding '.$config['done']);
+
+            if ($target === FindingStatus::FalsePositive->value) {
+                $action->schema(self::noteSchema())
+                    ->modalHeading('Mark as false positive')
+                    ->modalDescription('Explain why this is not a real issue. The note stays on the finding, including after later scans, and is included when you copy or share it.')
+                    ->modalSubmitActionLabel('Mark as false positive');
+            }
+
+            $actions[] = $action;
         }
 
         return $actions;
@@ -93,19 +107,48 @@ class TriageActions
         $actions = [];
 
         foreach (self::transitions() as $target => $config) {
-            $actions[] = BulkAction::make('bulk_triage_'.$target)
+            $action = BulkAction::make('bulk_triage_'.$target)
                 ->label($config['label'])
                 ->icon($config['icon'])
                 ->color($config['color'])
-                ->action(function (Collection $records) use ($target): void {
-                    Finding::query()
-                        ->whereKey($records->modelKeys())
-                        ->update(['status' => $target]);
+                ->action(function (Collection $records, array $data) use ($target): void {
+                    $status = FindingStatus::from($target);
+                    $note = $data['false_positive_note'] ?? null;
+                    $userId = auth()->id();
+
+                    $records->each(function (Finding $record) use ($status, $note, $userId): void {
+                        $record->applyTriage($status, $note, $userId);
+                    });
                 })
                 ->deselectRecordsAfterCompletion()
                 ->successNotificationTitle('Selected findings '.$config['done']);
+
+            if ($target === FindingStatus::FalsePositive->value) {
+                $action->schema(self::noteSchema())
+                    ->modalHeading('Mark selected as false positive')
+                    ->modalDescription('One note is stored on every selected finding.')
+                    ->modalSubmitActionLabel('Mark as false positive');
+            }
+
+            $actions[] = $action;
         }
 
         return BulkActionGroup::make($actions)->label('Triage selected');
+    }
+
+    /**
+     * @return list<Textarea>
+     */
+    private static function noteSchema(): array
+    {
+        return [
+            Textarea::make('false_positive_note')
+                ->label('Note')
+                ->required()
+                ->minLength(Finding::FALSE_POSITIVE_NOTE_MIN)
+                ->maxLength(Finding::FALSE_POSITIVE_NOTE_MAX)
+                ->rows(4)
+                ->helperText('Required. Say why this match is not a real issue. At least '.Finding::FALSE_POSITIVE_NOTE_MIN.' characters.'),
+        ];
     }
 }

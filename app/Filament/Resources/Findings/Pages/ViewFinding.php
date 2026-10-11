@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Findings\Pages;
 
+use App\Filament\Resources\Findings\Actions\FindingExportActions;
 use App\Filament\Resources\Findings\Actions\TriageActions;
 use App\Filament\Resources\Findings\FindingResource;
 use App\Models\Finding;
@@ -27,6 +28,9 @@ class ViewFinding extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return TriageActions::make();
+        return [
+            ...FindingExportActions::make(),
+            ...TriageActions::make(),
+        ];
     }
 }

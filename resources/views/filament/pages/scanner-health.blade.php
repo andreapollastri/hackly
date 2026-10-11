@@ -14,6 +14,28 @@
             </span>
         </div>
 
+        <x-filament::section heading="Vulnerability databases" description="Nuclei templates, the Trivy database, and Semgrep rules. Refreshed daily when the scheduler is running. Composer audit and OSV are queried live and have no local database." compact>
+            @if ($databases)
+                <p class="hk-bin__hint">Last run {{ \Illuminate\Support\Carbon::parse($databases['ran_at'])->diffForHumans() }}.</p>
+                <ul class="hk-bin-list">
+                    @foreach ($databases['results'] as $row)
+                        <li class="hk-bin">
+                            <span @class(['hk-dot', 'hk-dot--ok' => $row['status'] !== 'failed', 'hk-dot--bad' => $row['status'] === 'failed'])></span>
+                            <div class="hk-bin__body">
+                                <div class="hk-bin__head">
+                                    <span class="hk-bin__name">{{ $row['tool'] }}</span>
+                                    <span class="hk-bin__used">{{ $row['detail'] }}</span>
+                                </div>
+                            </div>
+                            <span @class(['hk-bin__state', 'is-ok' => $row['status'] === 'updated'])>{{ $row['status'] }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <p class="hk-bin__hint">No refresh recorded yet. Run <code>php artisan hackly:update-databases</code>, or leave <code>schedule:work</code> running.</p>
+            @endif
+        </x-filament::section>
+
         <div class="hk-health__grid">
             @foreach (['Target scanners (DAST / ASM)' => $targetBinaries, 'Repository scanners (SAST / SCA)' => $repoBinaries] as $heading => $rows)
                 <x-filament::section :heading="$heading" compact>

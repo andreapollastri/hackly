@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Domain\RepoScanning\Scanners\CheckovScanner;
+use App\Domain\RepoScanning\Scanners\CheckpointScanner;
 use App\Domain\RepoScanning\Scanners\ComposerOsvScanner;
 use App\Domain\RepoScanning\Scanners\ComposerOutdatedScanner;
 use App\Domain\RepoScanning\Scanners\GitleaksScanner;
@@ -19,19 +20,30 @@ use App\Domain\RepoScanning\Services\RepoScanDispatcher;
 use App\Domain\RepoScanning\Services\RepoScannerRegistry;
 use App\Domain\Scanning\Scanners\DnsScanner;
 use App\Domain\Scanning\Scanners\MailSecurityScanner;
+use App\Domain\Scanning\Scanners\NiktoScanner;
+use App\Domain\Scanning\Scanners\NucleiPentestScanner;
 use App\Domain\Scanning\Scanners\NucleiScanner;
 use App\Domain\Scanning\Scanners\OriginExposureScanner;
 use App\Domain\Scanning\Scanners\PathDiscoveryScanner;
+use App\Domain\Scanning\Scanners\PentestApiScanner;
+use App\Domain\Scanning\Scanners\PentestLoginScanner;
+use App\Domain\Scanning\Scanners\PentestPortScanner;
+use App\Domain\Scanning\Scanners\PentestSurfaceScanner;
 use App\Domain\Scanning\Scanners\PortScanner;
 use App\Domain\Scanning\Scanners\SubdomainScanner;
 use App\Domain\Scanning\Scanners\TechFingerprintScanner;
 use App\Domain\Scanning\Scanners\TlsScanner;
+use App\Domain\Scanning\Scanners\WpScanScanner;
+use App\Domain\Scanning\Scanners\ZapPentestScanner;
 use App\Domain\Scanning\Scanners\ZapScanner;
 use App\Domain\Scanning\Services\BinaryRunner;
 use App\Domain\Scanning\Services\DnsOwnershipVerifier;
 use App\Domain\Scanning\Services\ScanDispatcher;
 use App\Domain\Scanning\Services\ScannerRegistry;
 use App\Domain\Scanning\Services\TargetGuard;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -53,7 +65,15 @@ class AppServiceProvider extends ServiceProvider
                 new TechFingerprintScanner,
                 new PathDiscoveryScanner,
                 new NucleiScanner,
+                new NucleiPentestScanner,
                 new ZapScanner,
+                new ZapPentestScanner,
+                new PentestPortScanner,
+                new PentestApiScanner,
+                new PentestLoginScanner,
+                new PentestSurfaceScanner,
+                new WpScanScanner,
+                new NiktoScanner,
             ]);
         });
 
@@ -74,6 +94,7 @@ class AppServiceProvider extends ServiceProvider
                 new ComposerOsvScanner,
                 new ComposerOutdatedScanner,
                 new LaravelPhpAuditScanner,
+                new CheckpointScanner,
                 new LaravelLivePentestScanner,
             ]);
         });
@@ -83,6 +104,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        config(['sanctum.token_prefix' => env('SANCTUM_TOKEN_PREFIX', 'hk_')]);
+
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

@@ -19,6 +19,14 @@ enum ScanTaskType: string implements HasDescription, HasIcon, HasLabel
     case PathDiscovery = 'path_discovery';
     case NucleiOwasp = 'nuclei_owasp';
     case ZapBaseline = 'zap_baseline';
+    case PentestPorts = 'pentest_ports';
+    case PentestApi = 'pentest_api';
+    case PentestLogin = 'pentest_login';
+    case PentestSurface = 'pentest_surface';
+    case ZapPentest = 'zap_pentest';
+    case NucleiPentest = 'nuclei_pentest';
+    case WpScan = 'wpscan';
+    case Nikto = 'nikto';
 
     public function label(): string
     {
@@ -38,6 +46,14 @@ enum ScanTaskType: string implements HasDescription, HasIcon, HasLabel
             self::PathDiscovery => 'Path discovery',
             self::NucleiOwasp => 'Nuclei templates',
             self::ZapBaseline => 'OWASP ZAP baseline',
+            self::PentestPorts => 'Pentest ports',
+            self::PentestApi => 'API specification',
+            self::PentestLogin => 'Login surface',
+            self::PentestSurface => 'Technology surface',
+            self::ZapPentest => 'OWASP ZAP pentest',
+            self::NucleiPentest => 'Nuclei pentest',
+            self::WpScan => 'WPScan',
+            self::Nikto => 'Nikto',
         };
     }
 
@@ -54,6 +70,14 @@ enum ScanTaskType: string implements HasDescription, HasIcon, HasLabel
             self::PathDiscovery => 'soft wordlist',
             self::NucleiOwasp => 'nuclei',
             self::ZapBaseline => 'zap',
+            self::PentestPorts => 'nmap',
+            self::PentestApi => 'openapi',
+            self::PentestLogin => 'http',
+            self::PentestSurface => 'http',
+            self::ZapPentest => 'zap',
+            self::NucleiPentest => 'nuclei',
+            self::WpScan => 'wpscan',
+            self::Nikto => 'nikto',
         };
     }
 
@@ -70,6 +94,14 @@ enum ScanTaskType: string implements HasDescription, HasIcon, HasLabel
             self::PathDiscovery => 'Sensitive paths such as .env, Telescope and Horizon.',
             self::NucleiOwasp => 'OWASP, PHP, Laravel and dotenv vulnerability templates.',
             self::ZapBaseline => 'Passive DAST baseline with calibrated severities.',
+            self::PentestPorts => 'Service detection on the ports you declared, plus a fixed professional set.',
+            self::PentestApi => 'Reviews the declared OpenAPI or Swagger document for missing authentication.',
+            self::PentestLogin => 'Reviews declared login URLs and, once, the session cookie of a test account you supplied.',
+            self::PentestSurface => 'Checks declared URLs and technology endpoints for exposure. Stays on the authorized host.',
+            self::ZapPentest => 'Longer OWASP ZAP run against the authorized origin.',
+            self::NucleiPentest => 'Template checks for Laravel, PHP, frontends, Apache and Nginx across the authorized host.',
+            self::WpScan => 'WordPress version, plugins, themes and known vulnerabilities. No password guessing.',
+            self::Nikto => 'Web server checks for Apache, Nginx and other stacks on the authorized host.',
         };
     }
 
@@ -86,6 +118,14 @@ enum ScanTaskType: string implements HasDescription, HasIcon, HasLabel
             self::PathDiscovery => Heroicon::OutlinedFolderOpen,
             self::NucleiOwasp => Heroicon::OutlinedBugAnt,
             self::ZapBaseline => Heroicon::OutlinedBolt,
+            self::PentestPorts => Heroicon::OutlinedSignal,
+            self::PentestApi => Heroicon::OutlinedCodeBracket,
+            self::PentestLogin => Heroicon::OutlinedKey,
+            self::PentestSurface => Heroicon::OutlinedGlobeAlt,
+            self::ZapPentest => Heroicon::OutlinedBolt,
+            self::NucleiPentest => Heroicon::OutlinedBugAnt,
+            self::WpScan => Heroicon::OutlinedGlobeAlt,
+            self::Nikto => Heroicon::OutlinedServer,
         };
     }
 }

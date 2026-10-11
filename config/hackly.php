@@ -21,6 +21,12 @@ return [
     'allow_private_targets' => (bool) env('HACKLY_ALLOW_PRIVATE_TARGETS', env('APP_ENV') !== 'production'),
 
     /*
+    | Public address scans leave from. Shown during DNS setup so it can be allowlisted.
+    | Leave empty to detect it once from this server.
+    */
+    'egress_ip' => env('HACKLY_EGRESS_IP'),
+
+    /*
     |--------------------------------------------------------------------------
     | Binary Paths
     |--------------------------------------------------------------------------
@@ -31,6 +37,8 @@ return [
         'dig' => env('HACKLY_DIG', 'dig'),
         'whois' => env('HACKLY_WHOIS', 'whois'),
         'nuclei' => env('HACKLY_NUCLEI', 'nuclei'),
+        'wpscan' => env('HACKLY_WPSCAN', 'wpscan'),
+        'nikto' => env('HACKLY_NIKTO', 'nikto'),
         'zap' => env(
             'HACKLY_ZAP',
             PHP_OS_FAMILY === 'Darwin' && is_executable('/Applications/ZAP.app/Contents/Java/zap.sh')
@@ -113,6 +121,19 @@ return [
             'nuclei_owasp',
             'zap_baseline',
         ],
+        'pentest' => [
+            'tech_fingerprint',
+            'path_discovery',
+            'tls_check',
+            'pentest_surface',
+            'pentest_api',
+            'pentest_login',
+            'pentest_ports',
+            'nuclei_pentest',
+            'wpscan',
+            'nikto',
+            'zap_pentest',
+        ],
     ],
 
     /*
@@ -132,6 +153,14 @@ return [
         'path_discovery' => 'default',
         'nuclei_owasp' => 'default',
         'zap_baseline' => 'default',
+        'pentest_ports' => 'default',
+        'pentest_api' => 'default',
+        'pentest_login' => 'default',
+        'pentest_surface' => 'default',
+        'nuclei_pentest' => 'default',
+        'wpscan' => 'default',
+        'nikto' => 'default',
+        'zap_pentest' => 'default',
     ],
 
     /*
@@ -183,6 +212,18 @@ return [
         'home' => env('HACKLY_NUCLEI_HOME', storage_path('app/nuclei-home')),
         'templates_path' => env('HACKLY_NUCLEI_TEMPLATES'),
         'tags' => env('HACKLY_NUCLEI_TAGS', 'owasp,cve,misconfig,exposure,vuln,laravel,php,dotenv'),
+    ],
+
+    'wpscan' => [
+        'timeout' => (int) env('HACKLY_WPSCAN_TIMEOUT', 900),
+        'throttle_ms' => (int) env('HACKLY_WPSCAN_THROTTLE_MS', 500),
+        'enumerate' => env('HACKLY_WPSCAN_ENUMERATE', 'vp,vt,cb,dbe,u'),
+        'api_token' => env('HACKLY_WPSCAN_API_TOKEN'),
+    ],
+
+    'nikto' => [
+        'timeout' => (int) env('HACKLY_NIKTO_TIMEOUT', 900),
+        'max_time' => env('HACKLY_NIKTO_MAX_TIME', '600'),
     ],
 
     'zap' => [
@@ -264,6 +305,7 @@ return [
                 'composer_osv',
                 'gitleaks_secrets',
                 'laravel_php_audit',
+                'checkpoint',
             ],
             'standard' => [
                 'semgrep_sast',
@@ -272,6 +314,7 @@ return [
                 'composer_osv',
                 'composer_outdated',
                 'laravel_php_audit',
+                'checkpoint',
                 'laravel_live_pentest',
             ],
             'deep' => [
@@ -282,6 +325,7 @@ return [
                 'composer_osv',
                 'composer_outdated',
                 'laravel_php_audit',
+                'checkpoint',
                 'laravel_live_pentest',
             ],
         ],
@@ -294,6 +338,7 @@ return [
             'composer_osv' => 'default',
             'composer_outdated' => 'default',
             'laravel_php_audit' => 'default',
+            'checkpoint' => 'default',
             'laravel_live_pentest' => 'default',
         ],
 
@@ -301,10 +346,12 @@ return [
             'timeout' => (int) env('HACKLY_SEMGREP_TIMEOUT', 600),
             // PHP-focused rulesets; add comma-separated configs if needed.
             'config' => env('HACKLY_SEMGREP_CONFIG', 'p/php'),
+            'home' => env('HACKLY_SEMGREP_HOME', storage_path('app/semgrep-home')),
         ],
 
         'trivy' => [
             'timeout' => (int) env('HACKLY_TRIVY_TIMEOUT', 600),
+            'cache' => env('HACKLY_TRIVY_CACHE', storage_path('app/trivy-cache')),
         ],
 
         'gitleaks' => [
@@ -322,6 +369,10 @@ return [
 
         'laravel_audit' => [
             'timeout' => (int) env('HACKLY_LARAVEL_AUDIT_TIMEOUT', 120),
+        ],
+
+        'checkpoint' => [
+            'timeout' => (int) env('HACKLY_CHECKPOINT_TIMEOUT', 600),
         ],
 
         'laravel_live' => [
@@ -349,6 +400,55 @@ return [
             // When true, unreachable dependency findings are omitted from the final set.
             'hide_unreachable' => (bool) env('HACKLY_REPO_HIDE_UNREACHABLE', false),
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Penetration tests
+    |--------------------------------------------------------------------------
+    |
+    | Each run needs a fresh DNS TXT check. The scan covers the whole authorized
+    | host, and also the API, login URLs, extra URLs and ports declared on it.
+    |
+    */
+
+    'pentest' => [
+        'authorization_minutes' => (int) env('HACKLY_PENTEST_AUTH_MINUTES', 30),
+        'cooldown_hours' => (int) env('HACKLY_PENTEST_COOLDOWN_HOURS', 6),
+        'zap_minutes' => (int) env('HACKLY_PENTEST_ZAP_MINUTES', 12),
+        'zap_timeout' => (int) env('HACKLY_PENTEST_ZAP_TIMEOUT', 900),
+        'nuclei_timeout' => (int) env('HACKLY_PENTEST_NUCLEI_TIMEOUT', 900),
+        'nuclei_tags' => env(
+            'HACKLY_PENTEST_NUCLEI_TAGS',
+            'owasp,cve,vuln,misconfig,exposure,laravel,php,apache,nginx,wordpress,drupal,joomla,magento,nodejs,nextjs,xss,sqli,lfi,ssti,xxe,dotenv'
+        ),
+    ],
+
+    /*
+    | Sunday morning email of open findings. The scheduler must be running.
+    */
+    'digest' => [
+        'enabled' => (bool) env('HACKLY_DIGEST_ENABLED', true),
+        'time' => env('HACKLY_DIGEST_TIME', '08:00'),
+        'timezone' => env('HACKLY_DIGEST_TIMEZONE', env('APP_TIMEZONE', 'UTC')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scanner databases
+    |--------------------------------------------------------------------------
+    |
+    | Daily refresh of data that lives on the worker: Nuclei templates, the
+    | Trivy vulnerability database, and the Semgrep ruleset. Tools that query
+    | a live API (composer audit, OSV) are left alone.
+    |
+    */
+
+    'databases' => [
+        'enabled' => (bool) env('HACKLY_DB_UPDATE_ENABLED', true),
+        'time' => env('HACKLY_DB_UPDATE_TIME', '03:30'),
+        'timezone' => env('HACKLY_DB_UPDATE_TIMEZONE', env('APP_TIMEZONE', 'UTC')),
+        'timeout' => (int) env('HACKLY_DB_UPDATE_TIMEOUT', 900),
     ],
 
 ];

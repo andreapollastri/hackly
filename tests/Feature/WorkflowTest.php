@@ -60,10 +60,20 @@ class WorkflowTest extends TestCase
         $finding = Finding::query()->issues()->open()->firstOrFail();
 
         Livewire::test(ListFindings::class)
-            ->callAction(TestAction::make('triage_false_positive')->table($finding))
+            ->callAction(TestAction::make('triage_false_positive')->table($finding), [
+                'false_positive_note' => 'Known placeholder in a test fixture, not a live issue.',
+            ])
             ->assertHasNoActionErrors();
 
-        $this->assertSame(FindingStatus::FalsePositive, $finding->fresh()->status);
+        $finding->refresh();
+
+        $this->assertSame(FindingStatus::FalsePositive, $finding->status);
+        $this->assertSame('Known placeholder in a test fixture, not a live issue.', $finding->false_positive_note);
+
+        $finding->applyTriage(FindingStatus::Open);
+
+        $this->assertSame(FindingStatus::Open, $finding->fresh()->status);
+        $this->assertSame('Known placeholder in a test fixture, not a live issue.', $finding->fresh()->false_positive_note);
     }
 
     public function test_triage_decisions_survive_a_rescan_but_fixed_findings_reopen(): void
@@ -76,12 +86,18 @@ class WorkflowTest extends TestCase
 
         app(ScanDispatcher::class)->persistFindings($task, [$falsePositive, $regression]);
 
-        Finding::query()->where('title', 'Noisy header check')->update(['status' => FindingStatus::FalsePositive]);
+        Finding::query()->where('title', 'Noisy header check')->update([
+            'status' => FindingStatus::FalsePositive,
+            'false_positive_note' => 'Header is intentional on this host.',
+        ]);
         Finding::query()->where('title', 'Exposed .env')->update(['status' => FindingStatus::Fixed]);
 
         app(ScanDispatcher::class)->persistFindings($task, [$falsePositive, $regression]);
 
-        $this->assertSame(FindingStatus::FalsePositive, Finding::query()->where('title', 'Noisy header check')->value('status'));
+        $kept = Finding::query()->where('title', 'Noisy header check')->first();
+
+        $this->assertSame(FindingStatus::FalsePositive, $kept->status);
+        $this->assertSame('Header is intentional on this host.', $kept->false_positive_note);
         $this->assertSame(FindingStatus::Open, Finding::query()->where('title', 'Exposed .env')->value('status'));
     }
 

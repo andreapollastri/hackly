@@ -306,6 +306,9 @@
                             @if (filled($finding->description))
                                 <div class="finding-desc">{{ $finding->description }}</div>
                             @endif
+                            @if (filled($finding->false_positive_note))
+                                <div class="finding-desc"><strong>False positive note:</strong> {{ $finding->false_positive_note }}</div>
+                            @endif
                             @if ($evidenceLines !== [])
                                 <div class="finding-evidence">
                                     <div class="finding-evidence-label">Detail</div>

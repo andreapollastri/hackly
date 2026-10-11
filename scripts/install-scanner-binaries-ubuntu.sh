@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Non-interactive installer for Hackly scanner binaries on Ubuntu 24.04 / 26.04+.
 #
-# Installs: dig (dnsutils), whois, nmap, nuclei, OWASP ZAP (+ OpenJDK)
+# Installs: dig (dnsutils), whois, nmap, nuclei, nikto, wpscan, OWASP ZAP (+ OpenJDK)
 #
 # Usage (must use bash — not sh/dash):
 #   sudo bash scripts/install-scanner-binaries-ubuntu.sh
@@ -10,7 +10,7 @@
 # Optional env:
 #   HACKLY_BIN_DIR=/usr/local/bin   # nuclei symlink destination
 #   HACKLY_ZAP_DIR=/opt/zaproxy     # ZAP install directory
-#   SKIP_NUCLEI=1 / SKIP_ZAP=1      # skip individual installs
+#   SKIP_NUCLEI=1 / SKIP_ZAP=1 / SKIP_WPSCAN=1 / SKIP_NIKTO=1
 
 set -euo pipefail
 
@@ -68,6 +68,34 @@ apt_install() {
     unzip \
     openjdk-17-jre-headless \
     jq
+}
+
+install_nikto() {
+  if [[ "${SKIP_NIKTO:-0}" == "1" ]]; then
+    warn "Skipping nikto (SKIP_NIKTO=1)"
+    return
+  fi
+
+  log "Installing nikto"
+  apt-get install -y --no-install-recommends nikto
+}
+
+install_wpscan() {
+  if [[ "${SKIP_WPSCAN:-0}" == "1" ]]; then
+    warn "Skipping wpscan (SKIP_WPSCAN=1)"
+    return
+  fi
+
+  if apt-cache show wpscan >/dev/null 2>&1; then
+    log "Installing wpscan from apt"
+    apt-get install -y --no-install-recommends wpscan ruby
+    return
+  fi
+
+  log "Installing wpscan via RubyGems"
+  apt-get install -y --no-install-recommends ruby ruby-dev build-essential
+  gem install wpscan --no-document
+  command -v wpscan >/dev/null 2>&1 || warn "wpscan was not found on PATH after gem install"
 }
 
 install_nuclei() {
@@ -170,6 +198,8 @@ print_versions() {
   else
     printf '  zap:    NOT FOUND\n'
   fi
+  printf '  nikto:  %s\n' "$(command -v nikto 2>/dev/null || echo 'NOT FOUND')"
+  printf '  wpscan: %s\n' "$(command -v wpscan 2>/dev/null || echo 'NOT FOUND')"
 }
 
 print_env_hint() {
@@ -182,6 +212,9 @@ Add to your Hackly .env if binaries are not on PATH:
   HACKLY_WHOIS=whois
   HACKLY_NUCLEI=${BIN_DIR}/nuclei
   HACKLY_ZAP=${BIN_DIR}/zap.sh
+  HACKLY_NIKTO=nikto
+  HACKLY_WPSCAN=wpscan
+  HACKLY_WPSCAN_API_TOKEN=
 
 Then verify:
 
@@ -201,6 +234,8 @@ main() {
   mkdir -p "$BIN_DIR"
 
   apt_install
+  install_nikto
+  install_wpscan
   install_nuclei "$arch"
   install_zap "$arch"
   print_versions

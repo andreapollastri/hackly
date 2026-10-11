@@ -337,6 +337,7 @@ class DemoSeeder extends Seeder
                 $finding->created_at = $created;
             }
 
+            $this->stampFalsePositive($finding, $status, $created);
             $finding->updated_at = $created;
             $finding->save();
         }
@@ -359,9 +360,9 @@ class DemoSeeder extends Seeder
         ];
 
         $profileTasks = [
-            'quick' => [RepoScanTaskType::GitleaksSecrets, RepoScanTaskType::ComposerOsv, RepoScanTaskType::LaravelPhpAudit],
-            'standard' => [RepoScanTaskType::SemgrepSast, RepoScanTaskType::TrivySca, RepoScanTaskType::GitleaksSecrets, RepoScanTaskType::ComposerOsv, RepoScanTaskType::ComposerOutdated, RepoScanTaskType::LaravelPhpAudit],
-            'deep' => [RepoScanTaskType::SemgrepSast, RepoScanTaskType::TrivySca, RepoScanTaskType::GitleaksSecrets, RepoScanTaskType::CheckovIac, RepoScanTaskType::ComposerOsv, RepoScanTaskType::ComposerOutdated, RepoScanTaskType::LaravelPhpAudit],
+            'quick' => [RepoScanTaskType::GitleaksSecrets, RepoScanTaskType::ComposerOsv, RepoScanTaskType::LaravelPhpAudit, RepoScanTaskType::Checkpoint],
+            'standard' => [RepoScanTaskType::SemgrepSast, RepoScanTaskType::TrivySca, RepoScanTaskType::GitleaksSecrets, RepoScanTaskType::ComposerOsv, RepoScanTaskType::ComposerOutdated, RepoScanTaskType::LaravelPhpAudit, RepoScanTaskType::Checkpoint],
+            'deep' => [RepoScanTaskType::SemgrepSast, RepoScanTaskType::TrivySca, RepoScanTaskType::GitleaksSecrets, RepoScanTaskType::CheckovIac, RepoScanTaskType::ComposerOsv, RepoScanTaskType::ComposerOutdated, RepoScanTaskType::LaravelPhpAudit, RepoScanTaskType::Checkpoint],
         ];
 
         foreach ($plans as [$fullName, $profile, $daysAgo, $status]) {
@@ -454,6 +455,11 @@ class DemoSeeder extends Seeder
                 ['medium', 'Abandoned package: fruitcake/laravel-cors', 'dependency_health', 'composer-outdated', 'fruitcake/laravel-cors is no longer maintained; its author recommends laravel/framework. Abandoned packages stop receiving security fixes.', Reachability::Reachable, 80, ['package' => 'fruitcake/laravel-cors', 'package_version' => 'v3.0.0', 'replacement' => 'laravel/framework']],
                 ['low', '6 direct dependencies have compatible updates', 'dependency_health', 'composer-outdated', 'Updates within your version constraints. Running `composer update` regularly keeps bug and security fixes flowing.', Reachability::Unknown, null, ['records' => ['guzzlehttp/guzzle 7.8.1 → 7.10.0', 'livewire/livewire 3.5.12 → 3.6.4', 'spatie/laravel-backup 9.1.0 → 9.3.2', 'stripe/stripe-php 16.1.0 → 16.6.0', 'league/flysystem-aws-s3-v3 3.28.0 → 3.29.0', 'laravel/sanctum 4.0.2 → 4.0.8']]],
             ],
+            RepoScanTaskType::Checkpoint->value => [
+                ['high', 'app/Services/Importer.php:18 — LIBXML_NOENT substitutes entities (enables XXE on untrusted XML)', 'sast', 'checkpoint', 'XML External Entity (XXE) Risks — entity substitution is enabled on XML the application does not fully trust.', Reachability::Reachable, 90, ['file' => 'app/Services/Importer.php', 'line' => 18, 'rule_id' => 'checkpoint.xml-external-entity-xxe-risks', 'check' => 'XML External Entity (XXE) Risks']],
+                ['medium', 'resources/views/account/profile.blade.php: 1 form(s) with POST but no @csrf directive.', 'laravel', 'checkpoint', 'CSRF Protection — a state-changing form is missing a CSRF token.', Reachability::Reachable, 75, ['file' => 'resources/views/account/profile.blade.php', 'rule_id' => 'checkpoint.csrf-protection', 'check' => 'CSRF Protection']],
+                ['medium', 'app/Models/Coupon.php: $guarded = [] — every attribute is mass-assignable.', 'laravel', 'checkpoint', 'Mass Assignment Vulnerabilities — the model opts out of Eloquent guarding.', Reachability::Reachable, 70, ['file' => 'app/Models/Coupon.php', 'line' => 9, 'rule_id' => 'checkpoint.mass-assignment-vulnerabilities', 'check' => 'Mass Assignment Vulnerabilities']],
+            ],
             RepoScanTaskType::LaravelPhpAudit->value => [
                 ['high', 'Committed .env file', 'laravel', 'hackly-laravel-audit', '.env is tracked by git and contains APP_KEY and DB credentials.', Reachability::Reachable, 95, ['file' => '.env']],
                 ['medium', 'Model without $fillable / $guarded (mass assignment)', 'laravel', 'hackly-laravel-audit', 'App\\Models\\Coupon is fully unguarded.', Reachability::Reachable, 70, ['file' => 'app/Models/Coupon.php', 'line' => 9]],
@@ -472,6 +478,7 @@ class DemoSeeder extends Seeder
             $count++;
 
             $fingerprint = 'demo-repo-'.sha1($repo->id.'|'.$title);
+            $status = $this->pickStatus($fingerprint, $category);
             $finding = Finding::query()->firstOrNew(['fingerprint' => $fingerprint]);
             $isNew = ! $finding->exists;
             $at = $task->started_at->copy()->addSeconds($i);
@@ -484,7 +491,7 @@ class DemoSeeder extends Seeder
                 'title' => $title,
                 'category' => $category,
                 'source' => $source,
-                'status' => $this->pickStatus($fingerprint, $category),
+                'status' => $status,
                 'reachability' => $reachability,
                 'noise_filtered' => isset($evidence['noise_reasons']),
                 'confidence' => $confidence,
@@ -496,11 +503,23 @@ class DemoSeeder extends Seeder
                 $finding->created_at = $at;
             }
 
+            $this->stampFalsePositive($finding, $status, $at);
             $finding->updated_at = $at;
             $finding->save();
         }
 
         return $count;
+    }
+
+    private function stampFalsePositive(Finding $finding, FindingStatus $status, mixed $at): void
+    {
+        if ($status !== FindingStatus::FalsePositive) {
+            return;
+        }
+
+        $finding->false_positive_note = 'Demo workspace: accepted as a known test fixture, not a production issue.';
+        $finding->false_positive_noted_at = $at;
+        $finding->false_positive_noted_by = $this->user->id;
     }
 
     private function pickStatus(string $fingerprint, string $category): FindingStatus

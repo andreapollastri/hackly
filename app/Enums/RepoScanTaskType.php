@@ -16,6 +16,7 @@ enum RepoScanTaskType: string implements HasDescription, HasIcon, HasLabel
     case ComposerOsv = 'composer_osv';
     case ComposerOutdated = 'composer_outdated';
     case LaravelPhpAudit = 'laravel_php_audit';
+    case Checkpoint = 'checkpoint';
     case LaravelLivePentest = 'laravel_live_pentest';
 
     public function label(): string
@@ -28,6 +29,7 @@ enum RepoScanTaskType: string implements HasDescription, HasIcon, HasLabel
             self::ComposerOsv => 'Composer / OSV',
             self::ComposerOutdated => 'Composer outdated',
             self::LaravelPhpAudit => 'Laravel PHP audit',
+            self::Checkpoint => 'Checkpoint',
             self::LaravelLivePentest => 'Laravel live pentest',
         };
     }
@@ -47,6 +49,7 @@ enum RepoScanTaskType: string implements HasDescription, HasIcon, HasLabel
             self::ComposerOsv => 'composer+osv',
             self::ComposerOutdated => 'composer outdated',
             self::LaravelPhpAudit => 'hackly-laravel-audit',
+            self::Checkpoint => 'checkpoint',
             self::LaravelLivePentest => 'hackly-laravel-live',
         };
     }
@@ -61,6 +64,7 @@ enum RepoScanTaskType: string implements HasDescription, HasIcon, HasLabel
             self::ComposerOsv => 'composer audit + OSV advisories.',
             self::ComposerOutdated => 'Abandoned packages and direct dependencies a major version behind.',
             self::LaravelPhpAudit => 'Committed .env, debug packages, mass assignment and more.',
+            self::Checkpoint => 'All 30 Checkpoint checks: CVEs, secrets, injection, Laravel config, supply chain.',
             self::LaravelLivePentest => 'Live probes against linked, verified targets.',
         };
     }
@@ -75,6 +79,7 @@ enum RepoScanTaskType: string implements HasDescription, HasIcon, HasLabel
             self::ComposerOsv => Heroicon::OutlinedArchiveBox,
             self::ComposerOutdated => Heroicon::OutlinedClock,
             self::LaravelPhpAudit => Heroicon::OutlinedDocumentMagnifyingGlass,
+            self::Checkpoint => Heroicon::OutlinedShieldCheck,
             self::LaravelLivePentest => Heroicon::OutlinedBolt,
         };
     }

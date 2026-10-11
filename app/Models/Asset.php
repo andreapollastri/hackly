@@ -62,6 +62,11 @@ class Asset extends Model
         return $this->hasMany(Scan::class);
     }
 
+    public function penetrationTests(): HasMany
+    {
+        return $this->hasMany(PenetrationTest::class);
+    }
+
     public function latestScan(): HasOne
     {
         return $this->hasOne(Scan::class)->latestOfMany('created_at');

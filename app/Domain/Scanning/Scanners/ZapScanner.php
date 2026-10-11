@@ -18,6 +18,11 @@ class ZapScanner extends AbstractScanner
         return ScanTaskType::ZapBaseline;
     }
 
+    protected function maxDurationMinutes(): int
+    {
+        return (int) config('hackly.zap.max_duration_minutes', 10);
+    }
+
     public function timeoutSeconds(): int
     {
         return (int) config('hackly.zap.timeout', 900);
@@ -41,7 +46,7 @@ class ZapScanner extends AbstractScanner
 
         $reportJson = $outputPath.'.json';
         $homeDir = $outputPath.'.zap-home';
-        $maxDuration = (int) config('hackly.zap.max_duration_minutes', 10);
+        $maxDuration = $this->maxDurationMinutes();
 
         if (! is_dir($homeDir) && ! mkdir($homeDir, 0755, true) && ! is_dir($homeDir)) {
             throw new RuntimeException("Unable to create ZAP home directory: {$homeDir}");

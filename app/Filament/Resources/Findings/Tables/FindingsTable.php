@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Findings\Tables;
 use App\Enums\FindingSeverity;
 use App\Enums\FindingStatus;
 use App\Enums\Reachability;
+use App\Filament\Resources\Findings\Actions\FindingExportActions;
 use App\Filament\Resources\Findings\Actions\TriageActions;
 use App\Filament\Resources\Findings\Schemas\FindingInfolist;
 use App\Models\Finding;
@@ -73,7 +74,10 @@ class FindingsTable
                     ->toggleable(),
                 TextColumn::make('status')
                     ->badge()
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn (Finding $record): ?string => $record->status === FindingStatus::FalsePositive && filled($record->false_positive_note)
+                        ? str($record->false_positive_note)->limit(72)->toString()
+                        : null),
                 TextColumn::make('reachability')
                     ->badge()
                     ->placeholder('—')
@@ -157,6 +161,7 @@ class FindingsTable
                     ->modalWidth(Width::ThreeExtraLarge)
                     ->schema(fn (Schema $schema): Schema => FindingInfolist::configure($schema))
                     ->modalFooterActions(fn (ViewAction $action): array => [
+                        ...FindingExportActions::make(),
                         ...TriageActions::make(closesParent: true),
                         $action->getModalCancelAction()->label('Close'),
                     ]),

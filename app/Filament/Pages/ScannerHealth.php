@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Domain\Scanning\Services\ScannerDatabaseUpdater;
 use App\Filament\Support\NavigationGroup;
 use App\Support\ScannerHealth as Health;
 use Filament\Actions\Action;
@@ -92,6 +93,7 @@ class ScannerHealth extends Page
                 'failed' => $failedJobs,
                 'stalled' => $stalled,
             ],
+            'databases' => ScannerDatabaseUpdater::lastRun(),
             'safety' => [
                 ['label' => 'Ownership verification', 'value' => 'Required (DNS TXT)', 'ok' => true],
                 ['label' => 'Allowlist only', 'value' => config('hackly.allowlist_only') ? 'On · '.count(config('hackly.allowlist', [])).' entries' : 'Off', 'ok' => (bool) config('hackly.allowlist_only')],

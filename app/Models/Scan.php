@@ -21,6 +21,7 @@ class Scan extends Model
 
     protected $fillable = [
         'asset_id',
+        'penetration_test_id',
         'profile',
         'status',
         'requested_by',
@@ -44,6 +45,11 @@ class Scan extends Model
     public function asset(): BelongsTo
     {
         return $this->belongsTo(Asset::class);
+    }
+
+    public function penetrationTest(): BelongsTo
+    {
+        return $this->belongsTo(PenetrationTest::class);
     }
 
     public function requester(): BelongsTo

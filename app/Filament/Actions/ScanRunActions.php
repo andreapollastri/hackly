@@ -4,6 +4,7 @@ namespace App\Filament\Actions;
 
 use App\Domain\RepoScanning\Services\RepoScanDispatcher;
 use App\Domain\Scanning\Services\ScanDispatcher;
+use App\Enums\ScanProfile;
 use App\Filament\Resources\RepoScans\RepoScanResource;
 use App\Filament\Resources\Scans\ScanResource;
 use App\Models\RepoScan;
@@ -41,7 +42,8 @@ class ScanRunActions
             ->label('Run again')
             ->icon(Heroicon::OutlinedArrowPath)
             ->color('gray')
-            ->visible(fn (Scan|RepoScan $record): bool => ! $record->isActive())
+            ->visible(fn (Scan|RepoScan $record): bool => ! $record->isActive()
+                && ! ($record instanceof Scan && $record->profile === ScanProfile::Pentest))
             ->requiresConfirmation()
             ->modalIcon(Heroicon::OutlinedArrowPath)
             ->modalHeading(fn (Scan|RepoScan $record): string => 'Run the '.$record->profile->getLabel().' profile again?')

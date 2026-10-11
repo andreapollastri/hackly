@@ -46,9 +46,10 @@ class StartRepositoryScanAction
                     ->visible($pickRepository),
                 Radio::make('profile')
                     ->label('Profile')
-                    ->options(ScanProfile::class)
+                    ->options(ScanProfile::selectable())
                     ->descriptions(collect(ScanProfile::cases())
-                        ->mapWithKeys(fn (ScanProfile $p): array => [$p->value => $p->repositoryDescription()])
+                        ->reject(fn (ScanProfile $profile): bool => $profile === ScanProfile::Pentest)
+                        ->mapWithKeys(fn (ScanProfile $profile): array => [$profile->value => $profile->repositoryDescription()])
                         ->all())
                     ->default(ScanProfile::Standard->value)
                     ->required(),

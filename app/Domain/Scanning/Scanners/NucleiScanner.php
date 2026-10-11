@@ -56,10 +56,9 @@ class NucleiScanner extends AbstractScanner
             [$nuclei],
             NucleiRuntime::baseFlags(),
             [
-                '-u',
-                $asset->httpBaseUrl(),
+                ...$this->targetArguments($asset, $task),
                 '-tags',
-                (string) config('hackly.nuclei.tags', 'owasp,cve,misconfig,exposure,vuln,laravel,php,dotenv'),
+                $this->tags(),
                 '-severity',
                 'info,low,medium,high,critical',
                 '-rate-limit',
@@ -72,6 +71,19 @@ class NucleiScanner extends AbstractScanner
                 $jsonl,
             ],
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function targetArguments(Asset $asset, ScanTask $task): array
+    {
+        return ['-u', $asset->httpBaseUrl()];
+    }
+
+    protected function tags(): string
+    {
+        return (string) config('hackly.nuclei.tags', 'owasp,cve,misconfig,exposure,vuln,laravel,php,dotenv');
     }
 
     public function parse(Asset $asset, ScanTask $task, BinaryResult $result): array

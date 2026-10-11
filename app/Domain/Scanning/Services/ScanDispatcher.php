@@ -13,6 +13,7 @@ use App\Enums\ScanTaskType;
 use App\Jobs\RunScanTaskJob;
 use App\Models\Asset;
 use App\Models\Finding;
+use App\Models\PenetrationTest;
 use App\Models\Scan;
 use App\Models\ScanTask;
 use App\Models\User;
@@ -39,11 +40,36 @@ class ScanDispatcher
         bool $includeLinkedRepos = false,
         ?ScanProfile $linkedRepoProfile = null,
         bool $ignoreCooldown = false,
+        ?PenetrationTest $pentest = null,
     ): array {
+        if ($pentest !== null) {
+            $profile = ScanProfile::Pentest;
+
+            if ($pentest->asset_id !== $asset->id) {
+                throw new InvalidArgumentException('This penetration test belongs to a different target.');
+            }
+        } elseif ($profile === ScanProfile::Pentest) {
+            throw new InvalidArgumentException('A penetration test starts from the Penetration tests section, after a fresh DNS authorization for that run.');
+        }
+
         $this->guard->assertAllowed($asset);
         $this->ownershipVerifier->assertVerified($asset);
 
         $limiter = TargetRateLimiter::make();
+
+        if ($profile === ScanProfile::Pentest && ! $ignoreCooldown) {
+            $cooldownHours = (int) config('hackly.pentest.cooldown_hours', 6);
+            $recent = Scan::query()
+                ->where('asset_id', $asset->id)
+                ->where('profile', ScanProfile::Pentest)
+                ->where('created_at', '>=', now()->subHours($cooldownHours))
+                ->whereIn('status', [ScanStatus::Pending, ScanStatus::Running, ScanStatus::Completed])
+                ->exists();
+
+            if ($recent) {
+                throw new InvalidArgumentException("Penetration test cooldown active for {$cooldownHours}h on this target.");
+            }
+        }
 
         if ($profile === ScanProfile::Deep && ! $ignoreCooldown) {
             $cooldownHours = $limiter->deepCooldownHours();
@@ -65,9 +91,10 @@ class ScanDispatcher
             throw new InvalidArgumentException("Unknown scan profile [{$profile->value}].");
         }
 
-        $scan = DB::transaction(function () use ($asset, $profile, $user, $taskTypes, $limiter, $includeLinkedRepos) {
+        $scan = DB::transaction(function () use ($asset, $profile, $user, $taskTypes, $limiter, $includeLinkedRepos, $pentest) {
             $scan = Scan::query()->create([
                 'asset_id' => $asset->id,
+                'penetration_test_id' => $pentest?->id,
                 'profile' => $profile,
                 'status' => ScanStatus::Pending,
                 'requested_by' => $user?->id,
@@ -90,7 +117,7 @@ class ScanDispatcher
                         'sort_order' => $order++,
                         'scheduled_at' => $scheduledAt,
                         'finished_at' => now(),
-                        'error_message' => 'Scanner does not support this asset type.',
+                        'error_message' => 'Scanner is not available for this target.',
                     ]);
 
                     continue;

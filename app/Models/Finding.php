@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class Finding extends Model
 {
@@ -19,6 +21,10 @@ class Finding extends Model
      * Categories that record context rather than a problem (passed checks, scan deltas).
      */
     public const NON_ISSUE_CATEGORIES = ['passed', 'scan_diff'];
+
+    public const FALSE_POSITIVE_NOTE_MIN = 8;
+
+    public const FALSE_POSITIVE_NOTE_MAX = 2000;
 
     protected $fillable = [
         'asset_id',
@@ -33,6 +39,9 @@ class Finding extends Model
         'cve',
         'source',
         'status',
+        'false_positive_note',
+        'false_positive_noted_at',
+        'false_positive_noted_by',
         'reachability',
         'noise_filtered',
         'confidence',
@@ -46,6 +55,8 @@ class Finding extends Model
         return [
             'severity' => FindingSeverity::class,
             'status' => FindingStatus::class,
+            'false_positive_noted_at' => 'datetime',
+            'published_at' => 'datetime',
             'reachability' => Reachability::class,
             'noise_filtered' => 'boolean',
             'evidence' => 'array',
@@ -88,6 +99,72 @@ class Finding extends Model
         return in_array($current, [FindingStatus::Ack, FindingStatus::FalsePositive], true)
             ? $current
             : FindingStatus::Open;
+    }
+
+    /**
+     * A false positive keeps the note that justified it. Other statuses leave that note in place.
+     */
+    public function applyTriage(FindingStatus $status, ?string $note = null, ?string $userId = null): void
+    {
+        $attributes = ['status' => $status];
+
+        if ($status === FindingStatus::FalsePositive) {
+            $note = trim((string) $note);
+            $length = mb_strlen($note);
+
+            if ($length < self::FALSE_POSITIVE_NOTE_MIN || $length > self::FALSE_POSITIVE_NOTE_MAX) {
+                throw new InvalidArgumentException(
+                    'A note between '.self::FALSE_POSITIVE_NOTE_MIN.' and '.self::FALSE_POSITIVE_NOTE_MAX.' characters is required when marking a finding as a false positive.',
+                );
+            }
+
+            $attributes['false_positive_note'] = $note;
+            $attributes['false_positive_noted_at'] = now();
+            $attributes['false_positive_noted_by'] = $userId;
+        }
+
+        $this->update($attributes);
+    }
+
+    public function isPublished(): bool
+    {
+        return filled($this->publish_hash);
+    }
+
+    public function publish(?string $userId = null): void
+    {
+        if ($this->isPublished()) {
+            return;
+        }
+
+        $this->forceFill([
+            'publish_hash' => Str::random(40),
+            'published_at' => now(),
+            'published_by' => $userId,
+        ])->save();
+    }
+
+    public function unpublish(): void
+    {
+        $this->forceFill([
+            'publish_hash' => null,
+            'published_at' => null,
+            'published_by' => null,
+        ])->save();
+    }
+
+    public function publicUrl(): ?string
+    {
+        if (! $this->isPublished()) {
+            return null;
+        }
+
+        return route('findings.public', ['hash' => $this->publish_hash]);
+    }
+
+    public function falsePositiveAuthor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'false_positive_noted_by');
     }
 
     public static function categoryLabel(?string $category): string

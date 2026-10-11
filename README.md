@@ -20,6 +20,7 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#feature-tour">Feature tour</a> ·
   <a href="#what-it-scans">What it scans</a> ·
+  <a href="#api">API</a> ·
   <a href="#configuration">Configuration</a> ·
   <a href="#security-model">Security model</a>
 </p>
@@ -48,7 +49,7 @@
 
 ### Triage findings, not noise
 
-Every issue from every scanner lands in one list, ranked High → Low. Work through the **Open** tab, then acknowledge, mark as fixed or flag false positives — one by one or in bulk. Passed checks are hidden unless you ask for them.
+Every issue from every scanner lands in one list, ranked High → Low. Work through the **Open** tab, then acknowledge, mark as fixed, or flag a false positive — a false positive requires a note. Copy any finding as Markdown or as a prompt for an AI, or publish an optional public link. Passed checks are hidden unless you ask for them.
 
 <p align="center"><img src="docs/screenshots/findings.png" alt="Findings list with severity, asset, source and triage status tabs" width="100%"></p>
 
@@ -159,6 +160,7 @@ No Node build is needed: Filament ships its compiled assets and Hackly's panel s
 | Path discovery | soft wordlist / Nuclei (Laravel exposures) | standard · deep |
 | Nuclei templates | `nuclei` (+ laravel/php/dotenv tags) | standard · deep |
 | OWASP ZAP baseline | ZAP (calibrated severities) | deep |
+| Penetration test | Fresh DNS check, then the whole host: Nuclei, ZAP, Nikto, WPScan, scoped ports, declared API and logins | engagement |
 
 ### Repository scanners (Laravel / PHP)
 
@@ -168,6 +170,7 @@ No Node build is needed: Filament ships its compiled assets and Hackly's panel s
 | Composer / CVE | `composer audit` + [OSV](https://osv.dev) | quick · standard · deep |
 | Dependency health | `composer outdated --locked` — abandoned packages, direct deps a major behind, Laravel out of security support | standard · deep |
 | Laravel PHP audit | Hackly static checks on the clone | quick · standard · deep |
+| Checkpoint | All [30 Checkpoint checks](https://checkpoint.web.ap.it/) (CVEs, secrets, injection, Laravel config, supply chain) | quick · standard · deep |
 | SAST | `semgrep` (`p/php`) | standard · deep |
 | SCA | `trivy` | standard · deep |
 | IaC | `checkov` (when Docker / Terraform / Actions are present) | deep |
@@ -190,7 +193,7 @@ No Node build is needed: Filament ships its compiled assets and Hackly's panel s
 | **Open** | Reported by the latest scan and not triaged yet |
 | **Acknowledged** | Someone owns it; it stays visible in “Needs attention” |
 | **Fixed** | Marked fixed by you — target findings are also closed automatically when a later scan of the same checks no longer reports them |
-| **False positive** | Dismissed — re-detection keeps it dismissed |
+| **False positive** | Dismissed with a required note. Re-detection keeps the dismissal and the note |
 
 A finding marked *Fixed* that shows up again is reopened automatically, so regressions surface on their own.
 
@@ -303,8 +306,11 @@ Scans are always started on demand — there is no automatic recurring scan sche
 | `hackly:repo-scan {owner/repo} --profile=standard` | Repository scan; optional `--include-targets` |
 | `hackly:cleanup-outputs` | Delete old raw scanner output |
 | `hackly:dispatch-due` | Re-dispatch leftover pending tasks |
+| `hackly:token {email}` | Issue a personal API token (`--ability=full`, `read`, or `write`). Shown once |
+| `hackly:digest` | Email the weekly findings digest (`--dry-run` prints it). Scheduled Sunday 08:00 |
+| `hackly:update-databases` | Refresh Nuclei templates, the Trivy vulnerability database, and Semgrep rules. Scheduled daily at 03:30 |
 | `queue:work` | Process scan jobs |
-| `schedule:work` / cron `schedule:run` | Hourly cleanup of old output (optional) |
+| `schedule:work` / cron `schedule:run` | Hourly output cleanup, Sunday digest, daily scanner-database refresh |
 
 ---
 
@@ -353,6 +359,15 @@ HACKLY_CHECKOV=checkov
 # HACKLY_OSV_ENABLED=true
 # HACKLY_REPO_HIDE_UNREACHABLE=false
 # HACKLY_REPO_DROP_NOISE=false
+
+# Sunday digest. Requires the scheduler.
+HACKLY_DIGEST_ENABLED=true
+HACKLY_DIGEST_TIME=08:00
+# HACKLY_DIGEST_TIMEZONE=Europe/Rome
+# Daily Nuclei / Trivy / Semgrep data refresh
+HACKLY_DB_UPDATE_ENABLED=true
+HACKLY_DB_UPDATE_TIME=03:30
+# SANCTUM_TOKEN_PREFIX=hk_
 ```
 
 ### Production checklist
@@ -364,8 +379,27 @@ HACKLY_CHECKOV=checkov
 - Add GitHub tokens only through **Settings → GitHub tokens** (encrypted with `APP_KEY`)
 - Run both install scripts on the worker host, then check **Scanner health**
 - Keep a supervised `queue:work` process running
+- Keep the scheduler running so Sunday's digest and the daily Nuclei / Trivy / Semgrep refresh actually fire
 
 ---
+
+## API
+
+Tokens are created on **Profile** (or with `php artisan hackly:token`). Each user owns their own tokens; the workspace stays shared. Send `Authorization: Bearer hk_…`.
+
+| Ability | Can |
+|---------|-----|
+| `*` | Everything, including creating and revoking tokens |
+| `write` | Change targets, scans, findings, credentials. Also reads |
+| `read` | GET only |
+
+Interactive docs: `/api/docs` on a running app, or [`docs/api.html`](docs/api.html). The spec is [`docs/openapi.yaml`](docs/openapi.yaml).
+
+Marking a finding `false_positive` requires `note` (at least 8 characters). `POST /api/v1/findings/{id}/share` publishes `/f/{40-character hash}`. `GET /api/v1/findings/{id}/markdown` and `/prompt` return the clipboard text. `GET /api/v1/digest` is the Sunday snapshot as JSON.
+
+## Weekly digest
+
+Sunday at 08:00, every user gets an email of the last seven days: posture, open findings, what arrived, what was triaged (false-positive notes included), failed scans, and situations such as unverified or stale targets. A short copy also lands in the panel notification bell. `php artisan schedule:work` (or cron `schedule:run`) has to be running. `php artisan hackly:digest --dry-run` prints the message without sending it.
 
 ## Security model
 

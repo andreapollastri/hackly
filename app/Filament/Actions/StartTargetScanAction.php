@@ -52,7 +52,7 @@ class StartTargetScanAction
                     ->visible($pickTarget),
                 Radio::make('profile')
                     ->label('Profile')
-                    ->options(ScanProfile::class)
+                    ->options(ScanProfile::selectable())
                     ->default(ScanProfile::Standard->value)
                     ->required(),
                 Toggle::make('include_repos')

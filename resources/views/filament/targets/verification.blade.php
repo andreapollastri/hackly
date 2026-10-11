@@ -1,9 +1,11 @@
 @php
     /** @var \App\Models\Asset $asset */
+    $scannerIp = app(\App\Domain\Scanning\Services\ScannerEgress::class)->address();
     $rows = [
         ['label' => 'Type', 'value' => 'TXT'],
         ['label' => 'Host / name', 'value' => $asset->verificationHost(), 'hint' => 'Use “@” if your DNS provider expects a relative name.'],
         ['label' => 'Value', 'value' => $token],
+        ['label' => 'Scanner IP', 'value' => $scannerIp ?: 'Set HACKLY_EGRESS_IP', 'hint' => 'Whitelist this address if the target only accepts traffic from known IPs. DAST scans and penetration tests both leave from it.'],
     ];
 @endphp
 

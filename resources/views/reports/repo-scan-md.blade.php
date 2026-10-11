@@ -49,6 +49,9 @@ _No tasks recorded._
 - **CVE:** `{{ $finding->cve ?? '—' }}`
 - **Reachability:** `{{ $finding->reachability?->value ?? '—' }}`
 - **Status:** `{{ $finding->status->value }}`
+@if (filled($finding->false_positive_note))
+- **False positive note:** {{ $finding->false_positive_note }}
+@endif
 - **Fingerprint:** `{{ $finding->fingerprint }}`
 
 @if (filled($finding->description))

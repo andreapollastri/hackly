@@ -4,6 +4,7 @@ namespace App\Domain\RepoScanning\Scanners;
 
 use App\Domain\RepoScanning\DTO\RawFinding;
 use App\Domain\Scanning\DTO\BinaryResult;
+use App\Domain\Scanning\Services\ScannerDatabaseUpdater;
 use App\Enums\FindingSeverity;
 use App\Enums\RepoScanTaskType;
 use App\Models\RepoScan;
@@ -26,6 +27,17 @@ class SemgrepScanner extends AbstractRepoScanner
     public function supports(Repository $repository, RepoScan $scan): bool
     {
         return $this->binaryAvailable('semgrep');
+    }
+
+    public function processEnvironment(Repository $repository, RepoScan $scan): array
+    {
+        $home = (string) config('hackly.repo.semgrep.home');
+
+        if (! is_dir($home)) {
+            mkdir($home, 0775, true);
+        }
+
+        return ScannerDatabaseUpdater::semgrepEnvironment($home);
     }
 
     public function buildCommand(Repository $repository, RepoScan $scan, RepoScanTask $task, string $outputPath): array

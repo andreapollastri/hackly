@@ -47,6 +47,36 @@ class FindingInfolist
                             ->columnSpanFull(),
                     ]),
 
+                Section::make('False positive note')
+                    ->icon(Heroicon::OutlinedNoSymbol)
+                    ->compact()
+                    ->visible(fn (Finding $record): bool => filled($record->false_positive_note))
+                    ->schema([
+                        TextEntry::make('false_positive_note')
+                            ->hiddenLabel()
+                            ->columnSpanFull(),
+                        TextEntry::make('false_positive_noted_at')
+                            ->label('Noted')
+                            ->dateTime()
+                            ->placeholder('—'),
+                        TextEntry::make('falsePositiveAuthor.name')
+                            ->label('Noted by')
+                            ->placeholder('—'),
+                    ]),
+
+                Section::make('Public link')
+                    ->icon(Heroicon::OutlinedLink)
+                    ->compact()
+                    ->visible(fn (Finding $record): bool => $record->isPublished())
+                    ->schema([
+                        TextEntry::make('share_url')
+                            ->hiddenLabel()
+                            ->state(fn (Finding $record): string => (string) $record->publicUrl())
+                            ->copyable()
+                            ->url(fn (Finding $record): string => (string) $record->publicUrl(), shouldOpenInNewTab: true)
+                            ->helperText('Anyone with this address can read the finding. Unshare to turn it off.'),
+                    ]),
+
                 Section::make('Where')
                     ->icon(Heroicon::OutlinedMapPin)
                     ->compact()

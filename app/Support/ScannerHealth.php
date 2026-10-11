@@ -18,18 +18,20 @@ class ScannerHealth
     public const USED_BY = [
         'dig' => ['DNS & WHOIS', 'Mail security'],
         'whois' => ['DNS & WHOIS'],
-        'nmap' => ['Port scan'],
-        'nuclei' => ['Nuclei templates', 'Path discovery'],
-        'zap' => ['OWASP ZAP baseline'],
+        'nmap' => ['Port scan', 'Pentest ports'],
+        'nuclei' => ['Nuclei templates', 'Path discovery', 'Nuclei pentest'],
+        'zap' => ['OWASP ZAP baseline', 'OWASP ZAP pentest'],
+        'wpscan' => ['WPScan'],
+        'nikto' => ['Nikto'],
         'git' => ['Repository clone'],
-        'composer' => ['Composer / OSV', 'Composer outdated'],
+        'composer' => ['Composer / OSV', 'Composer outdated', 'Checkpoint'],
         'semgrep' => ['Semgrep SAST'],
         'trivy' => ['Trivy SCA'],
         'gitleaks' => ['Gitleaks secrets'],
         'checkov' => ['Checkov IaC'],
     ];
 
-    public const TARGET_BINARIES = ['dig', 'whois', 'nmap', 'nuclei', 'zap'];
+    public const TARGET_BINARIES = ['dig', 'whois', 'nmap', 'nuclei', 'zap', 'wpscan', 'nikto'];
 
     /**
      * @return array<string, array{path: string, available: bool, resolved: ?string, hint: ?string}>

@@ -74,6 +74,8 @@ class PanelSmokeTest extends TestCase
             'findings (all)' => ['/findings?tab=all'],
             'github tokens' => ['/github-tokens'],
             'scanner health' => ['/scanner-health'],
+            'penetration tests' => ['/penetration-tests'],
+            'compliance' => ['/compliance'],
             'profile' => ['/profile'],
         ];
     }

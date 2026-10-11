@@ -1,0 +1,808 @@
+openapi: 3.0.3
+info:
+  title: Hackly API
+  version: 1.0.0
+  description: |
+    Authenticated API for an authorized Hackly workspace. Tokens are personal
+    (one user, one token) and use the `hk_` prefix by default.
+
+    Abilities: `*` (full, including minting tokens), `write` (mutate workspace data; also reads),
+    `read` (GET only).
+
+    Target scans still require DNS ownership verification. GitHub personal access tokens
+    are never returned. A finding marked false positive requires a `note`.
+    Public share links are unguessable and read-only; unsharing invalidates them.
+
+    The Sunday digest is also available here as JSON. Mail delivery is `php artisan hackly:digest`.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Workspace
+  - name: Targets
+  - name: Repositories
+  - name: GitHub credentials
+  - name: Scans
+  - name: Penetration tests
+  - name: Findings
+  - name: Compliance
+paths:
+  /v1/me:
+    get:
+      tags: [Auth]
+      summary: Current user and token
+      responses:
+        '200': { description: User and the token used for this request }
+        '401': { description: Missing or invalid token }
+  /v1/tokens:
+    get:
+      tags: [Auth]
+      summary: List your tokens
+      description: Requires a full (`*`) token.
+      responses:
+        '200': { description: Token list, without secrets }
+        '403': { description: Token cannot manage tokens }
+    post:
+      tags: [Auth]
+      summary: Issue a token
+      description: The plaintext token is returned once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, ability]
+              properties:
+                name: { type: string, maxLength: 120 }
+                ability: { type: string, enum: ['*', read, write] }
+      responses:
+        '201': { description: Token metadata plus plaintext }
+  /v1/tokens/{token}:
+    delete:
+      tags: [Auth]
+      summary: Revoke one of your tokens
+      parameters:
+        - $ref: '#/components/parameters/tokenId'
+      responses:
+        '204': { description: Revoked }
+        '404': { description: Not your token }
+  /v1/posture:
+    get:
+      tags: [Workspace]
+      summary: Security posture score
+      responses:
+        '200': { description: Score, grade, open counts }
+  /v1/digest:
+    get:
+      tags: [Workspace]
+      summary: Weekly findings digest
+      description: Same snapshot the Sunday email sends. Covers the last seven days.
+      responses:
+        '200': { description: Posture, open findings, triage, situations, and plain text }
+  /v1/profiles:
+    get:
+      tags: [Workspace]
+      summary: Scan profiles
+      description: Repository profiles include the checkpoint task, which runs every Checkpoint check.
+      responses:
+        '200': { description: Target and repository profiles }
+  /v1/scanner-health:
+    get:
+      tags: [Workspace]
+      summary: Scanner binaries, limits, and the last database refresh
+      responses:
+        '200': { description: Binary availability }
+  /v1/scanner-health/recheck:
+    post:
+      tags: [Workspace]
+      summary: Re-probe binaries
+      responses:
+        '200': { description: Fresh probe }
+        '403': { description: Read-only token }
+  /v1/gates/ci:
+    get:
+      tags: [Workspace]
+      summary: CI quality gate
+      parameters:
+        - in: query
+          name: threshold
+          schema: { type: string, enum: [high, medium, low], default: high }
+        - in: query
+          name: include_acknowledged
+          schema: { type: boolean, default: false }
+        - in: query
+          name: require_scan
+          schema: { type: boolean, default: false }
+        - in: query
+          name: fail
+          schema: { type: boolean, default: false }
+          description: When true, a failing gate returns 422.
+      responses:
+        '200': { description: Gate result }
+        '422': { description: Gate failed and fail=1 }
+  /v1/compliance:
+    get:
+      tags: [Compliance]
+      summary: Framework summaries
+      description: Evidence packs, not certifications.
+      responses:
+        '200': { description: Scores for every mapped framework }
+  /v1/compliance/{framework}:
+    get:
+      tags: [Compliance]
+      summary: One framework report as JSON
+      parameters:
+        - $ref: '#/components/parameters/framework'
+      responses:
+        '200': { description: Controls and evidence }
+        '404': { description: Unknown framework }
+  /v1/compliance/{framework}/report/{format}:
+    get:
+      tags: [Compliance]
+      summary: Download a framework report
+      parameters:
+        - $ref: '#/components/parameters/framework'
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200': { description: PDF or Markdown }
+  /v1/reports/posture:
+    get:
+      tags: [Compliance]
+      summary: Posture report as JSON
+      responses:
+        '200': { description: Posture document }
+  /v1/reports/posture/{format}:
+    get:
+      tags: [Compliance]
+      summary: Download the posture report
+      parameters:
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200': { description: PDF or Markdown }
+  /v1/targets:
+    get:
+      tags: [Targets]
+      summary: List targets
+      parameters:
+        - $ref: '#/components/parameters/perPage'
+      responses:
+        '200': { description: Target page }
+    post:
+      tags: [Targets]
+      summary: Add a domain and issue a DNS TXT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain: { type: string, description: Domain or URL. Normalized before storage. }
+                authorization_note: { type: string, nullable: true }
+      responses:
+        '201': { description: Target, still unverified }
+        '422': { description: Invalid or duplicate domain }
+  /v1/targets/{target}:
+    get:
+      tags: [Targets]
+      summary: Show a target
+      parameters:
+        - $ref: '#/components/parameters/target'
+      responses:
+        '200': { description: Target }
+    patch:
+      tags: [Targets]
+      summary: Update a target
+      parameters:
+        - $ref: '#/components/parameters/target'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                domain: { type: string }
+                authorization_note: { type: string, nullable: true }
+                status: { type: string, enum: [active, paused] }
+      responses:
+        '200': { description: Updated target }
+        '422': { description: Verified domains cannot be renamed }
+    delete:
+      tags: [Targets]
+      summary: Delete a target
+      parameters:
+        - $ref: '#/components/parameters/target'
+      responses:
+        '204': { description: Deleted }
+  /v1/targets/{target}/pause:
+    post:
+      tags: [Targets]
+      summary: Pause a target
+      parameters:
+        - $ref: '#/components/parameters/target'
+      responses:
+        '200': { description: Paused }
+  /v1/targets/{target}/resume:
+    post:
+      tags: [Targets]
+      summary: Resume a target
+      parameters:
+        - $ref: '#/components/parameters/target'
+      responses:
+        '200': { description: Active }
+  /v1/targets/{target}/verification:
+    post:
+      tags: [Targets]
+      summary: Ensure a DNS TXT token exists
+      parameters:
+        - $ref: '#/components/parameters/target'
+      responses:
+        '200': { description: Verification instructions when not yet verified }
+  /v1/targets/{target}/verification/check:
+    post:
+      tags: [Targets]
+      summary: Check DNS for the TXT token
+      parameters:
+        - $ref: '#/components/parameters/target'
+      responses:
+        '200': { description: Target, verified when the record matches }
+        '422': { description: Record not found or target refused }
+  /v1/targets/{target}/verification/regenerate:
+    post:
+      tags: [Targets]
+      summary: Replace the TXT token
+      parameters:
+        - $ref: '#/components/parameters/target'
+      responses:
+        '200': { description: New token }
+        '422': { description: Already verified }
+  /v1/targets/{target}/repositories:
+    put:
+      tags: [Targets]
+      summary: Replace linked repositories
+      parameters:
+        - $ref: '#/components/parameters/target'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repository_ids]
+              properties:
+                repository_ids:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        '200': { description: Target with repositories }
+  /v1/targets/{target}/scans:
+    post:
+      tags: [Targets]
+      summary: Start a target scan
+      description: Refused until DNS verification succeeds.
+      parameters:
+        - $ref: '#/components/parameters/target'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [profile]
+              properties:
+                profile: { type: string, enum: [quick, standard, deep] }
+                include_repositories: { type: boolean }
+      responses:
+        '201': { description: Scan queued }
+        '422': { description: Unverified, paused, or rate limited }
+  /v1/repositories:
+    get:
+      tags: [Repositories]
+      summary: List repositories
+      parameters:
+        - $ref: '#/components/parameters/perPage'
+      responses:
+        '200': { description: Repository page }
+    post:
+      tags: [Repositories]
+      summary: Add a GitHub repository
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name, github_credential_id]
+              properties:
+                full_name: { type: string, example: owner/repo }
+                github_credential_id: { type: string, format: uuid }
+                target_ids:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        '201': { description: Repository created from GitHub metadata }
+        '422': { description: GitHub rejected the token or name }
+  /v1/repositories/{repository}:
+    get:
+      tags: [Repositories]
+      summary: Show a repository
+      parameters:
+        - $ref: '#/components/parameters/repository'
+      responses:
+        '200': { description: Repository }
+    patch:
+      tags: [Repositories]
+      summary: Update a repository
+      parameters:
+        - $ref: '#/components/parameters/repository'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                github_credential_id: { type: string, format: uuid }
+                default_branch: { type: string }
+                status: { type: string, enum: [active, paused] }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Repositories]
+      summary: Delete a repository
+      parameters:
+        - $ref: '#/components/parameters/repository'
+      responses:
+        '204': { description: Deleted }
+  /v1/repositories/{repository}/pause:
+    post:
+      tags: [Repositories]
+      summary: Pause a repository
+      parameters:
+        - $ref: '#/components/parameters/repository'
+      responses:
+        '200': { description: Paused }
+  /v1/repositories/{repository}/resume:
+    post:
+      tags: [Repositories]
+      summary: Resume a repository
+      parameters:
+        - $ref: '#/components/parameters/repository'
+      responses:
+        '200': { description: Active }
+  /v1/repositories/{repository}/refresh:
+    post:
+      tags: [Repositories]
+      summary: Refresh metadata from GitHub
+      parameters:
+        - $ref: '#/components/parameters/repository'
+      responses:
+        '200': { description: Refreshed }
+  /v1/repositories/{repository}/targets:
+    put:
+      tags: [Repositories]
+      summary: Replace linked targets
+      parameters:
+        - $ref: '#/components/parameters/repository'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_ids]
+              properties:
+                target_ids:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        '200': { description: Repository with targets }
+  /v1/repositories/{repository}/scans:
+    post:
+      tags: [Repositories]
+      summary: Start a repository scan
+      parameters:
+        - $ref: '#/components/parameters/repository'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [profile]
+              properties:
+                profile: { type: string, enum: [quick, standard, deep] }
+                include_targets: { type: boolean }
+      responses:
+        '201': { description: Scan queued }
+        '422': { description: Paused repository or GitHub error }
+  /v1/github-credentials:
+    get:
+      tags: [GitHub credentials]
+      summary: List GitHub tokens
+      description: The secret is never included. A hint and validation status are.
+      responses:
+        '200': { description: Credential page }
+    post:
+      tags: [GitHub credentials]
+      summary: Store a GitHub token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, token]
+              properties:
+                name: { type: string }
+                token: { type: string, minLength: 8 }
+      responses:
+        '201': { description: Stored encrypted. Plaintext is not returned. }
+  /v1/github-credentials/{credential}:
+    get:
+      tags: [GitHub credentials]
+      summary: Show a GitHub token record
+      parameters:
+        - $ref: '#/components/parameters/credential'
+      responses:
+        '200': { description: Credential without the secret }
+    patch:
+      tags: [GitHub credentials]
+      summary: Rename or replace a GitHub token
+      parameters:
+        - $ref: '#/components/parameters/credential'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                token: { type: string, minLength: 8 }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [GitHub credentials]
+      summary: Delete a GitHub token
+      parameters:
+        - $ref: '#/components/parameters/credential'
+      responses:
+        '204': { description: Deleted }
+        '409': { description: Repositories still use it }
+  /v1/github-credentials/{credential}/validate:
+    post:
+      tags: [GitHub credentials]
+      summary: Validate a GitHub token
+      parameters:
+        - $ref: '#/components/parameters/credential'
+      responses:
+        '200': { description: Validation status updated }
+  /v1/scans:
+    get:
+      tags: [Scans]
+      summary: List target scans
+      parameters:
+        - $ref: '#/components/parameters/perPage'
+      responses:
+        '200': { description: Scan page }
+  /v1/scans/{scan}:
+    get:
+      tags: [Scans]
+      summary: Show a target scan
+      parameters:
+        - $ref: '#/components/parameters/scan'
+      responses:
+        '200': { description: Scan and tasks }
+  /v1/scans/{scan}/report/{format}:
+    get:
+      tags: [Scans]
+      summary: Download a target scan report
+      parameters:
+        - $ref: '#/components/parameters/scan'
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200': { description: PDF or Markdown }
+  /v1/scans/{scan}/cancel:
+    post:
+      tags: [Scans]
+      summary: Cancel a target scan
+      parameters:
+        - $ref: '#/components/parameters/scan'
+      responses:
+        '200': { description: Cancelled }
+  /v1/scans/{scan}/rerun:
+    post:
+      tags: [Scans]
+      summary: Run a target scan again
+      parameters:
+        - $ref: '#/components/parameters/scan'
+      responses:
+        '201': { description: New scan }
+  /v1/penetration-tests:
+    get:
+      tags: [Penetration tests]
+      summary: List penetration tests
+      parameters:
+        - $ref: '#/components/parameters/perPage'
+      responses:
+        '200': { description: Engagement page. Each run needs a fresh DNS TXT. scanner_ip is the address to whitelist. }
+    post:
+      tags: [Penetration tests]
+      summary: Create a penetration test
+      responses:
+        '201': { description: Engagement. URLs must stay on the authorized target. }
+  /v1/penetration-tests/{pentest}:
+    get:
+      tags: [Penetration tests]
+      summary: Show a penetration test
+      parameters:
+        - $ref: '#/components/parameters/pentest'
+      responses:
+        '200': { description: Scope, authorization token, and scanner IP }
+    patch:
+      tags: [Penetration tests]
+      summary: Update scope
+      parameters:
+        - $ref: '#/components/parameters/pentest'
+      responses:
+        '200': { description: Updated engagement }
+    delete:
+      tags: [Penetration tests]
+      summary: Delete a penetration test
+      parameters:
+        - $ref: '#/components/parameters/pentest'
+      responses:
+        '204': { description: Deleted }
+  /v1/penetration-tests/{pentest}/authorization:
+    post:
+      tags: [Penetration tests]
+      summary: Issue a fresh DNS authorization
+      parameters:
+        - $ref: '#/components/parameters/pentest'
+      responses:
+        '200': { description: New TXT token. The previous one no longer starts a run. }
+  /v1/penetration-tests/{pentest}/authorization/check:
+    post:
+      tags: [Penetration tests]
+      summary: Confirm the DNS TXT
+      parameters:
+        - $ref: '#/components/parameters/pentest'
+      responses:
+        '200': { description: Authorization ready }
+        '422': { description: TXT not found, or this token was already used }
+  /v1/penetration-tests/{pentest}/run:
+    post:
+      tags: [Penetration tests]
+      summary: Start the penetration test
+      description: Consumes the DNS authorization. Tasks include Nuclei, ZAP, Nikto and WPScan across the authorized host.
+      parameters:
+        - $ref: '#/components/parameters/pentest'
+      responses:
+        '201': { description: Scan queued }
+        '422': { description: Authorization missing, expired, or already used }
+  /v1/repo-scans:
+    get:
+      tags: [Scans]
+      summary: List repository scans
+      parameters:
+        - $ref: '#/components/parameters/perPage'
+      responses:
+        '200': { description: Repository scan page }
+  /v1/repo-scans/{repoScan}:
+    get:
+      tags: [Scans]
+      summary: Show a repository scan
+      parameters:
+        - $ref: '#/components/parameters/repoScan'
+      responses:
+        '200': { description: Repository scan and tasks }
+  /v1/repo-scans/{repoScan}/report/{format}:
+    get:
+      tags: [Scans]
+      summary: Download a repository scan report
+      parameters:
+        - $ref: '#/components/parameters/repoScan'
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200': { description: PDF or Markdown }
+  /v1/repo-scans/{repoScan}/cancel:
+    post:
+      tags: [Scans]
+      summary: Cancel a repository scan
+      parameters:
+        - $ref: '#/components/parameters/repoScan'
+      responses:
+        '200': { description: Cancelled }
+  /v1/repo-scans/{repoScan}/rerun:
+    post:
+      tags: [Scans]
+      summary: Run a repository scan again
+      parameters:
+        - $ref: '#/components/parameters/repoScan'
+      responses:
+        '201': { description: New scan }
+  /v1/findings:
+    get:
+      tags: [Findings]
+      summary: List findings
+      parameters:
+        - $ref: '#/components/parameters/perPage'
+        - in: query
+          name: status
+          schema: { type: string, enum: [open, ack, fixed, false_positive] }
+        - in: query
+          name: severity
+          schema: { type: string, enum: [high, medium, low] }
+        - in: query
+          name: target_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: repository_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: issues
+          schema: { type: boolean, default: true }
+          description: When true, passed checks and scan deltas are hidden.
+      responses:
+        '200': { description: Finding page }
+  /v1/findings/triage:
+    post:
+      tags: [Findings]
+      summary: Triage many findings
+      description: Status `false_positive` requires `note` (8–2000 characters). The same note is stored on each finding.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, status]
+              properties:
+                ids:
+                  type: array
+                  items: { type: string, format: uuid }
+                status: { type: string, enum: [open, ack, fixed, false_positive] }
+                note: { type: string }
+      responses:
+        '200': { description: Updated findings }
+        '422': { description: Missing false-positive note }
+  /v1/findings/{finding}:
+    get:
+      tags: [Findings]
+      summary: Show a finding
+      parameters:
+        - $ref: '#/components/parameters/finding'
+      responses:
+        '200': { description: Finding, including the false-positive note and share URL when set }
+    patch:
+      tags: [Findings]
+      summary: Triage one finding
+      description: Status `false_positive` requires `note`.
+      parameters:
+        - $ref: '#/components/parameters/finding'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [open, ack, fixed, false_positive] }
+                note: { type: string, minLength: 8, maxLength: 2000 }
+      responses:
+        '200': { description: Updated finding }
+        '422': { description: Missing false-positive note }
+  /v1/findings/{finding}/markdown:
+    get:
+      tags: [Findings]
+      summary: Finding as Markdown
+      parameters:
+        - $ref: '#/components/parameters/finding'
+      responses:
+        '200':
+          description: Markdown document
+          content:
+            text/markdown:
+              schema: { type: string }
+  /v1/findings/{finding}/prompt:
+    get:
+      tags: [Findings]
+      summary: Finding as an AI prompt
+      parameters:
+        - $ref: '#/components/parameters/finding'
+      responses:
+        '200':
+          description: Markdown prompt
+          content:
+            text/markdown:
+              schema: { type: string }
+  /v1/findings/{finding}/share:
+    post:
+      tags: [Findings]
+      summary: Publish a public read-only link
+      description: |
+        Creates an unguessable `/f/{hash}` address (40 characters). Calling again returns the same link.
+        Unshare and share again to rotate it. The public page includes Copy Markdown and Copy AI prompt,
+        and `?format=markdown` or `?format=prompt` returns the raw text.
+      parameters:
+        - $ref: '#/components/parameters/finding'
+      responses:
+        '201': { description: New link }
+        '200': { description: Existing link }
+    delete:
+      tags: [Findings]
+      summary: Remove the public link
+      parameters:
+        - $ref: '#/components/parameters/finding'
+      responses:
+        '204': { description: Link no longer resolves }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Sanctum personal access token. Default prefix `hk_`.
+  parameters:
+    perPage:
+      in: query
+      name: per_page
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    tokenId:
+      in: path
+      name: token
+      required: true
+      schema: { type: integer }
+    target:
+      in: path
+      name: target
+      required: true
+      schema: { type: string, format: uuid }
+    repository:
+      in: path
+      name: repository
+      required: true
+      schema: { type: string, format: uuid }
+    credential:
+      in: path
+      name: credential
+      required: true
+      schema: { type: string, format: uuid }
+    pentest:
+      in: path
+      name: pentest
+      required: true
+      schema: { type: string, format: uuid }
+    scan:
+      in: path
+      name: scan
+      required: true
+      schema: { type: string, format: uuid }
+    repoScan:
+      in: path
+      name: repoScan
+      required: true
+      schema: { type: string, format: uuid }
+    finding:
+      in: path
+      name: finding
+      required: true
+      schema: { type: string, format: uuid }
+    framework:
+      in: path
+      name: framework
+      required: true
+      schema:
+        type: string
+        enum: [dora, soc2, nis2, iso-27001, pci-dss, gdpr, nist-csf, owasp-top-10, cis-v8, hipaa, cyber-essentials, essential-eight]
+    format:
+      in: path
+      name: format
+      required: true
+      schema: { type: string, enum: [pdf, markdown] }

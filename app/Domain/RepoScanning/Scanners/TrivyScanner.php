@@ -28,6 +28,16 @@ class TrivyScanner extends AbstractRepoScanner
         return $this->binaryAvailable('trivy');
     }
 
+    public function processEnvironment(Repository $repository, RepoScan $scan): array
+    {
+        $cache = (string) config('hackly.repo.trivy.cache');
+
+        return [
+            'HOME' => dirname($cache),
+            'XDG_CACHE_HOME' => dirname($cache),
+        ];
+    }
+
     public function buildCommand(Repository $repository, RepoScan $scan, RepoScanTask $task, string $outputPath): array
     {
         $this->ensureOutputDir($outputPath);
@@ -40,11 +50,18 @@ class TrivyScanner extends AbstractRepoScanner
 
         $jsonOut = $outputPath.'.json';
 
+        $cache = (string) config('hackly.repo.trivy.cache');
+
+        if (! is_dir($cache)) {
+            mkdir($cache, 0775, true);
+        }
+
         return [
             $trivy, 'fs',
             '--scanners', 'vuln',
             '--format', 'json',
             '--output', $jsonOut,
+            '--cache-dir', $cache,
             '--quiet',
             '--skip-dirs', 'node_modules',
             '--skip-dirs', 'storage',

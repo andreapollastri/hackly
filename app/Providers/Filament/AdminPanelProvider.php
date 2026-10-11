@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Support\NavigationGroup;
 use App\Support\ScannerHealth;
@@ -34,7 +35,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('/')
             ->login()
-            ->profile(isSimple: false)
+            ->profile(EditProfile::class, isSimple: false)
             ->multiFactorAuthentication([
                 AppAuthentication::make()
                     ->recoverable()
@@ -69,6 +70,28 @@ class AdminPanelProvider extends PanelProvider
                 Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
+            ->renderHook(
+                PanelsRenderHook::SCRIPTS_AFTER,
+                fn (): HtmlString => new HtmlString(<<<'HTML'
+                    <script>
+                        window.hacklyCopy = async function (text) {
+                            try {
+                                await navigator.clipboard.writeText(text);
+                            } catch (e) {
+                                const area = document.createElement('textarea');
+                                area.value = text;
+                                area.setAttribute('readonly', '');
+                                area.style.position = 'fixed';
+                                area.style.left = '-9999px';
+                                document.body.appendChild(area);
+                                area.select();
+                                document.execCommand('copy');
+                                area.remove();
+                            }
+                        };
+                    </script>
+                    HTML),
+            )
             ->renderHook(
                 PanelsRenderHook::STYLES_AFTER,
                 fn (): HtmlString => new HtmlString(sprintf(

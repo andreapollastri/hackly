@@ -933,6 +933,7 @@
       <a href="#coverage">Coverage</a>
       <a href="#install">Install</a>
       <a href="#docs">Docs</a>
+      <a href="api.html">API</a>
       <a class="nav-cta" href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">GitHub</a>
     </div>
   </nav>
@@ -990,8 +991,9 @@
             <h3>Triage findings, not noise.</h3>
             <p>Every scanner reports into one list, ranked High → Low, with the asset it belongs to.</p>
             <ul>
-              <li>Open, Acknowledged, Fixed and False positive tabs</li>
-              <li>Bulk triage — decisions survive the next scan</li>
+              <li>Open, Acknowledged, Fixed and False positive tabs — a false positive needs a note</li>
+              <li>Copy the finding as Markdown or as a prompt for an AI</li>
+              <li>Optional public link, long and unguessable, that you can turn off</li>
               <li>Regressions reopen automatically</li>
               <li>Passed checks hidden until you ask for them</li>
             </ul>
@@ -1134,6 +1136,12 @@
           <span class="desc">Baseline DAST for deep profile — longer timeout, cooldown enforced.</span>
           <span class="tag">deep</span>
         </div>
+        <div class="coverage-row">
+          <span class="n">08</span>
+          <span class="name">Penetration test</span>
+          <span class="desc">Fresh DNS TXT each run. Covers the whole host with Nuclei, ZAP, <code>nikto</code> and <code>wpscan</code>, plus the API, logins, URLs and ports you declare. The scanner IP is shown so it can be allowlisted.</span>
+          <span class="tag">engagement</span>
+        </div>
       </div>
 
       <p class="section-kicker" style="margin-top:2.75rem">Repository scanners</p>
@@ -1185,6 +1193,12 @@
         </div>
         <div class="coverage-row">
           <span class="n">08</span>
+          <span class="name">Checkpoint</span>
+          <span class="desc">All 30 <a href="https://checkpoint.web.ap.it/">Checkpoint</a> checks: Composer and npm CVEs, secrets, SQLi, XSS, CSRF, SSRF, XXE, mass assignment, sessions, supply chain, outdated and abandoned packages.</span>
+          <span class="tag">quick · standard · deep</span>
+        </div>
+        <div class="coverage-row">
+          <span class="n">09</span>
           <span class="name">Laravel live pentest</span>
           <span class="desc">HTTP probes on <strong>linked</strong> Targets when “Also deep-scan linked targets” is on.</span>
           <span class="tag">standard · deep</span>
@@ -1273,6 +1287,8 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           <li><a href="#doc-usage">Targets</a></li>
           <li><a href="#doc-repos">Repositories</a></li>
           <li><a href="#doc-findings">Findings &amp; triage</a></li>
+          <li><a href="#doc-digest">Weekly digest</a></li>
+          <li><a href="#doc-api">API</a></li>
           <li><a href="#doc-modes">Scan modes</a></li>
           <li><a href="#doc-profiles">Scan profiles</a></li>
           <li><a href="#doc-commands">Commands</a></li>
@@ -1525,13 +1541,55 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 <tr><td class="strong">Open</td><td>Reported and not triaged yet</td></tr>
                 <tr><td class="strong">Acknowledged</td><td>Someone owns it — still listed under “Needs attention” on the dashboard</td></tr>
                 <tr><td class="strong">Fixed</td><td>Marked by you; target findings are also closed automatically when a later scan of the same checks no longer reports them</td></tr>
-                <tr><td class="strong">False positive</td><td>Dismissed — re-detection keeps it dismissed</td></tr>
+                <tr><td class="strong">False positive</td><td>Dismissed, with a required note that stays on the finding. Re-detection keeps it dismissed</td></tr>
               </tbody>
             </table>
           </div>
           <div class="callout">
             A <strong>Fixed</strong> finding that is detected again is reopened automatically, so regressions surface on their own.
             Each scan also keeps a snapshot of its own High / Medium / Low counts, so history stays accurate after re-scans.
+          </div>
+          <p>
+            On the finding, <strong>Copy Markdown</strong> puts every detail on the clipboard (severity, subject, evidence, and the false-positive note).
+            <strong>Copy AI prompt</strong> wraps that same write-up in a request for a root cause, a fix, and how to verify it.
+            <strong>Share link</strong> publishes a read-only page at <code>/f/</code> plus 40 random characters. Unshare and the old address stops working.
+            The public page can also be fetched as <code>?format=markdown</code> or <code>?format=prompt</code>.
+          </p>
+        </article>
+
+        <article class="doc-block" id="doc-digest">
+          <h3>Weekly digest</h3>
+          <p>
+            Every <strong>Sunday</strong> at 08:00 (timezone from <code>HACKLY_DIGEST_TIMEZONE</code>, otherwise the app timezone)
+            Hackly emails every user a digest of the last seven days: posture grade, open findings by severity,
+            what is new, what was fixed or dismissed (with the false-positive note), failed scans, and the situations
+            around the workspace — unverified targets, paused assets, and anything without a completed scan in 30 days.
+            The same snapshot is in the panel notification bell and at <code>GET /api/v1/digest</code>.
+          </p>
+          <p>
+            The scheduler has to be running. Preview without sending mail:
+          </p>
+          <div class="code-block">
+            <div class="code-header"><span>Terminal</span></div>
+            <pre><span class="tok-cmd">php artisan hackly:digest</span> <span class="tok-flag">--dry-run</span></pre>
+          </div>
+        </article>
+
+        <article class="doc-block" id="doc-api">
+          <h3>API</h3>
+          <p>
+            Personal access tokens live on <strong>Profile</strong>. Each user sees only their own tokens.
+            Send <code>Authorization: Bearer hk_…</code>. Abilities are <code>*</code> (full, can mint tokens),
+            <code>write</code> (changes, and reads), and <code>read</code>.
+            The interactive reference is <a class="link-inline" href="api.html">the API docs</a>,
+            and a running app serves the same spec at <code>/api/docs</code>.
+          </p>
+          <p>
+            Issue a token from the shell when you do not want to open the panel:
+          </p>
+          <div class="code-block">
+            <div class="code-header"><span>Terminal</span></div>
+            <pre><span class="tok-cmd">php artisan hackly:token</span> <span class="tok-arg">you@example.com</span> <span class="tok-flag">--ability=read</span></pre>
           </div>
         </article>
 
@@ -1616,7 +1674,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
               <tbody>
                 <tr>
                   <td class="strong">quick</td>
-                  <td><code>gitleaks_secrets</code>, <code>composer_osv</code>, <code>laravel_php_audit</code></td>
+                  <td><code>gitleaks_secrets</code>, <code>composer_osv</code>, <code>laravel_php_audit</code>, <code>checkpoint</code></td>
                 </tr>
                 <tr>
                   <td class="strong">standard</td>
@@ -1630,8 +1688,9 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
             </table>
           </div>
           <p style="margin-top:1rem">
-            * Live pentest only when linked targets are included. Findings are normalized to
-            <strong>LOW / MEDIUM / HIGH</strong>.
+            * Live pentest only when linked targets are included. <code>checkpoint</code> runs on every
+            repository profile and records each of the 30 Checkpoint checks.
+            Findings are normalized to <strong>LOW / MEDIUM / HIGH</strong>.
           </p>
         </article>
 
@@ -1668,6 +1727,18 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                 <tr>
                   <td class="mono">hackly:dispatch-due</td>
                   <td>Re-dispatch leftover pending tasks</td>
+                </tr>
+                <tr>
+                  <td class="mono">hackly:token {email}</td>
+                  <td>Issue a personal API token (<code>--ability=full|read|write</code>). Shown once</td>
+                </tr>
+                <tr>
+                  <td class="mono">hackly:digest</td>
+                  <td>Send the weekly findings digest now (<code>--dry-run</code> to preview)</td>
+                </tr>
+                <tr>
+                  <td class="mono">hackly:update-databases</td>
+                  <td>Refresh Nuclei templates, the Trivy database, and Semgrep rules. Scheduled daily at 03:30</td>
                 </tr>
                 <tr>
                   <td class="mono">queue:work</td>
@@ -1770,6 +1841,7 @@ HACKLY_CHECKOV=checkov
             <li>GitHub PATs are stored encrypted at rest (<code>APP_KEY</code>) via the <strong>GitHub tokens</strong> UI</li>
             <li>Repo workspace clones are removed after finalize when <code>HACKLY_REPO_CLEANUP=true</code> (default)</li>
             <li>Admin accounts support <strong>TOTP</strong> and <strong>email</strong> multi-factor authentication</li>
+            <li>API tokens are personal. A public finding link is off until you share it, and it does not reveal who published it</li>
           </ul>
           <div class="callout">
             Hackly is an orchestration layer — it does not replace responsible disclosure policies
@@ -1787,6 +1859,7 @@ HACKLY_CHECKOV=checkov
             <li>Change the seeded admin password immediately</li>
             <li>Store GitHub PATs only via the <strong>GitHub tokens</strong> UI</li>
             <li>Run both install scripts on the scan worker host, then <code>hackly:check-binaries</code> as the queue user</li>
+            <li>Keep the scheduler running so <code>hackly:update-databases</code> refreshes Nuclei, Trivy, and Semgrep data daily</li>
             <li>Run a persistent <code>queue:work</code>; optionally <code>schedule:work</code> (or cron) for output cleanup</li>
           </ul>
           <p style="margin-top:1rem">
@@ -1804,6 +1877,7 @@ HACKLY_CHECKOV=checkov
     </div>
     <div>
       <a href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">GitHub</a>
+      <a href="api.html">API</a>
       <a href="#docs">Docs</a>
     </div>
   </footer>
