@@ -41,6 +41,8 @@ use App\Domain\Scanning\Services\DnsOwnershipVerifier;
 use App\Domain\Scanning\Services\ScanDispatcher;
 use App\Domain\Scanning\Services\ScannerRegistry;
 use App\Domain\Scanning\Services\TargetGuard;
+use App\Updates\Updater;
+use App\Updates\UpdateState;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -100,6 +102,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(RepoScanDispatcher::class);
+
+        $this->app->singleton(Updater::class, fn (): Updater => new Updater(new UpdateState((string) config('updates.state'))));
     }
 
     public function boot(): void

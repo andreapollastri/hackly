@@ -76,6 +76,7 @@ class PanelSmokeTest extends TestCase
             'scanner health' => ['/scanner-health'],
             'penetration tests' => ['/penetration-tests'],
             'compliance' => ['/compliance'],
+            'updates' => ['/updates'],
             'profile' => ['/profile'],
         ];
     }

@@ -23,3 +23,8 @@ Schedule::command(HacklyUpdateDatabasesCommand::class)
     ->timezone((string) config('hackly.databases.timezone', 'UTC'))
     ->withoutOverlapping(180)
     ->when(fn (): bool => (bool) config('hackly.databases.enabled'));
+
+// Updates: the one an administrator asked for starts within a minute; the nightly one
+// runs while automatic updates are on (app:update, Settings → Updates).
+Schedule::command('app:update pending')->everyMinute()->runInBackground();
+Schedule::command('app:update apply --auto')->dailyAt((string) config('updates.time'))->runInBackground();

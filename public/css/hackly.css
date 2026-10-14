@@ -1190,6 +1190,105 @@
     font-size: 0.75rem;
 }
 
+/* ------------------------------------------------------------------ Updates */
+
+.hk-alert--info {
+    align-items: center;
+    background: var(--hk-low-bg);
+    color: var(--hk-low);
+    border-color: color-mix(in oklab, var(--hk-low) 25%, transparent);
+}
+
+.hk-alert--muted {
+    background: var(--hk-subtle);
+    color: var(--hk-muted);
+    border-color: var(--hk-border);
+}
+
+.hk-updates__grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+    .hk-updates__grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.hk-updates__grow {
+    flex: 1;
+}
+
+.hk-updates__hint {
+    font-size: 0.75rem;
+    opacity: 0.85;
+}
+
+.hk-updates__value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--hk-text);
+}
+
+.hk-updates__value .hk-link {
+    font-size: inherit;
+}
+
+.hk-updates__meta {
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    color: var(--hk-muted);
+}
+
+.hk-updates__note {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--hk-text);
+}
+
+.hk-updates__build {
+    font-family: var(--hk-mono);
+}
+
+.hk-updates__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--hk-text);
+}
+
+.hk-updates__message {
+    font-size: 0.875rem;
+    color: var(--hk-text);
+}
+
+.hk-updates__log {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--hk-border);
+}
+
+.hk-updates__log pre {
+    margin-top: 0.5rem;
+    max-height: 24rem;
+    overflow: auto;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: var(--gray-900);
+    color: var(--gray-100);
+    font-family: var(--hk-mono);
+    font-size: 0.6875rem;
+    line-height: 1.6;
+}
+
 /* ------------------------------------------------------------------ Filament tweaks */
 
 /* Mono IDs and evidence feel tighter with the system mono stack */

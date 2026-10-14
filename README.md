@@ -259,7 +259,7 @@ Jobs run on the **database queue** (no Horizon needed). A queue worker must be r
 
 - PHP **8.3+** and Composer
 - SQLite *(default)*, MySQL or PostgreSQL
-- `git` for repository clones
+- `git` for repository clones and [updates](#updates)
 - Node.js — optional, only for the Vite dev server
 
 ### Target scanner binaries *(recommended)*
@@ -346,8 +346,9 @@ Scans are always started on demand — there is no automatic recurring scan sche
 | `hackly:token {email}` | Issue a personal API token (`--ability=full`, `read`, or `write`). Shown once |
 | `hackly:digest` | Email the weekly findings digest (`--dry-run` prints it). Scheduled Sunday 08:00 |
 | `hackly:update-databases` | Refresh Nuclei templates, the Trivy vulnerability database, and Semgrep rules. Scheduled daily at 03:30 |
+| `app:update` | Self-update: `status`, `check`, `apply [--force]`, `channel stable\|beta`, `auto on\|off`. See [Updates](#updates) |
 | `queue:work` | Process scan jobs |
-| `schedule:work` / cron `schedule:run` | Hourly output cleanup, Sunday digest, daily scanner-database refresh |
+| `schedule:work` / cron `schedule:run` | Hourly output cleanup, Sunday digest, daily scanner-database refresh, updates |
 
 ---
 
@@ -424,7 +425,7 @@ HACKLY_DB_UPDATE_TIME=03:30
 - Set `HACKLY_EGRESS_IP` to the address that should be allowlisted
 - Run both install scripts on the worker host, then check **Scanner health** (include `nikto` and `wpscan` if you run penetration tests)
 - Keep a supervised `queue:work` process running
-- Keep the scheduler running so Sunday's digest and the daily Nuclei / Trivy / Semgrep refresh actually fire
+- Keep the scheduler running so Sunday's digest, the daily Nuclei / Trivy / Semgrep refresh and [updates](#updates) actually fire
 
 ---
 
@@ -449,6 +450,56 @@ Penetration tests: `POST /api/v1/penetration-tests` (optional `repository_ids` l
 ## Weekly digest
 
 Sunday at 08:00, every user gets an email of the last seven days: posture, open findings, what arrived, what was triaged (false-positive notes included), failed scans, and situations such as unverified or stale targets. A short copy also lands in the panel notification bell. `php artisan schedule:work` (or cron `schedule:run`) has to be running. `php artisan hackly:digest --dry-run` prints the message without sending it.
+
+## Updates
+
+Hackly keeps itself on the newest build of its channel. **Settings → Updates** shows the installed release and build, the newest one, and the last run with its log. Hackly has no roles: every user who can sign in is an administrator, and can update it.
+
+| Channel | Installs |
+|---------|----------|
+| **Stable** *(default)* | Release tags (`1.2.3` or `v1.2.3`), nothing in between |
+| **Beta** | Every new commit on `main`, before it becomes a release |
+
+An update never goes backwards: a build is installed only when it contains the installed commit. Back on stable after beta, Hackly keeps its `main` build until a release contains it. **Force update** reinstalls the newest build of the channel, or installs it when its history differs. It never installs an older one.
+
+Each update backs up the database (SQLite, MySQL, MariaDB or PostgreSQL), installs the build, runs `composer install`, migrates and checks that the app boots. If a step fails, the previous code and the database come back. The last five backups are kept in `storage/app/updates/backups`, the full log in `storage/app/updates/update.log`.
+
+**Update to …** and **Force update** start within a minute. With automatic updates on, the nightly run is at `APP_UPDATE_TIME`. Both start from the scheduler, so it must be running:
+
+```cron
+* * * * * php artisan schedule:run
+```
+
+Two kinds of install update themselves:
+
+- **A git checkout** (`git clone`): the build is checked out in place, in maintenance mode while it is built and migrated. Tracked files changed by hand stop the update. Force update discards them.
+- **A release of a deploy** (`releases/`, `current`, `shared/`, as Cipi and Deployer make them): the build goes into `releases/<build>` next to the running one and shares its `.env` and `storage`. `current` points at it once it is migrated. The live release, the previous one and one more are kept.
+
+Anything else shows a notice on the page. Update it the way it was installed.
+
+Updates need `git` and `composer` (and the database client for the backup: `mysqldump`/`mysql` or `pg_dump`/`psql`) on the `PATH` of the user that runs the scheduler. No Node build: the panel runs on Filament's compiled assets.
+
+```env
+APP_UPDATES=true                 # default: on when APP_ENV=production
+APP_UPDATE_REPOSITORY=https://github.com/andreapollastri/hackly.git
+APP_UPDATE_CHANNEL=stable        # stable or beta, until changed on the Updates page
+APP_UPDATE_AUTO=true             # nightly update, until changed on the Updates page
+APP_UPDATE_TIME=04:00            # in the application timezone
+APP_UPDATE_BACKUP=true           # database backup before every update
+# Empty: found on the PATH (PHP: the one running the update)
+# APP_UPDATE_PHP=/usr/bin/php8.4
+# APP_UPDATE_COMPOSER=/usr/local/bin/composer
+```
+
+From the CLI:
+
+| Command | Purpose |
+|---------|---------|
+| `php artisan app:update status` | Channel, installed and newest builds, last run |
+| `php artisan app:update check` | Look for a newer build now |
+| `php artisan app:update apply [--force]` | Update now |
+| `php artisan app:update channel stable\|beta` | Switch channel |
+| `php artisan app:update auto on\|off` | Turn the nightly update on or off |
 
 ## Security model
 
