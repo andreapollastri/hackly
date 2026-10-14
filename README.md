@@ -159,7 +159,7 @@ or separately:
 ```bash
 php artisan serve
 php artisan queue:work      # required — scans only progress while a worker runs
-php artisan schedule:work   # optional: hourly cleanup of raw scanner output
+php artisan schedule:work   # hourly cleanup, Sunday digest, daily tool databases
 ```
 
 Sign in at `/` with:
@@ -453,7 +453,7 @@ Sunday at 08:00, every user gets an email of the last seven days: posture, open 
 
 ## Updates
 
-Hackly keeps itself on the newest build of its channel. **Settings → Updates** shows the installed release and build, the newest one, and the last run with its log. Hackly has no roles: every user who can sign in is an administrator, and can update it.
+Hackly keeps itself on the newest build of its channel. The installed release is in [`VERSION`](VERSION). **Settings → Updates** shows it with its build, the newest one, and the last run with its log. Hackly has no roles: every user who can sign in is an administrator, and can update it.
 
 | Channel | Installs |
 |---------|----------|
@@ -462,20 +462,24 @@ Hackly keeps itself on the newest build of its channel. **Settings → Updates**
 
 An update never goes backwards: a build is installed only when it contains the installed commit. Back on stable after beta, Hackly keeps its `main` build until a release contains it. **Force update** reinstalls the newest build of the channel, or installs it when its history differs. It never installs an older one.
 
-Each update backs up the database (SQLite, MySQL, MariaDB or PostgreSQL), installs the build, runs `composer install`, migrates and checks that the app boots. If a step fails, the previous code and the database come back. The last five backups are kept in `storage/app/updates/backups`, the full log in `storage/app/updates/update.log`.
+Each update backs up the database (SQLite, MySQL, MariaDB or PostgreSQL), installs the build, runs `composer install --no-dev`, migrates, rebuilds the caches, restarts the queue workers and checks that the app boots. If a step fails, the previous code and the database come back. The last five backups are kept in `storage/app/updates/backups`, the full log in `storage/app/updates/update.log`.
 
-**Update to …** and **Force update** start within a minute. With automatic updates on, the nightly run is at `APP_UPDATE_TIME`. Both start from the scheduler, so it must be running:
+**Update to …** and **Force update** start within a minute. With automatic updates on, the nightly run is at `APP_UPDATE_TIME` (04:00). Both start from the scheduler, so it must be running:
 
 ```cron
 * * * * * php artisan schedule:run
 ```
 
+When it has not run in the last few minutes, the Updates page says so.
+
 Two kinds of install update themselves:
 
-- **A git checkout** (`git clone`): the build is checked out in place, in maintenance mode while it is built and migrated. Tracked files changed by hand stop the update. Force update discards them.
-- **A release of a deploy** (`releases/`, `current`, `shared/`, as Cipi and Deployer make them): the build goes into `releases/<build>` next to the running one and shares its `.env` and `storage`. `current` points at it once it is migrated. The live release, the previous one and one more are kept.
+- **A git checkout** (`git clone`): the build is checked out in place (detached), in maintenance mode while it is built and migrated. Tracked files changed by hand stop the update. Force update discards them.
+- **A release of a deploy** (`releases/`, `current`, `shared/`, as Cipi and Deployer make them): the build goes into `releases/<build>` next to the running one and shares its `.env` and `storage`. `current` points at it once it is migrated, and Cipi's workers restart on it. Of the releases it made, Hackly keeps the live one, the previous one and one more.
 
 Anything else shows a notice on the page. Update it the way it was installed.
+
+An installation from before 1.0.0 has no updater yet: update it by hand one last time (`git pull`, `composer install --no-dev`, `php artisan migrate --force`, or a redeploy) and add the scheduler. From then on it updates itself.
 
 Updates need `git` and `composer` (and the database client for the backup: `mysqldump`/`mysql` or `pg_dump`/`psql`) on the `PATH` of the user that runs the scheduler. No Node build: the panel runs on Filament's compiled assets.
 
@@ -486,9 +490,11 @@ APP_UPDATE_CHANNEL=stable        # stable or beta, until changed on the Updates 
 APP_UPDATE_AUTO=true             # nightly update, until changed on the Updates page
 APP_UPDATE_TIME=04:00            # in the application timezone
 APP_UPDATE_BACKUP=true           # database backup before every update
+APP_UPDATE_ASSETS=false          # no npm build: Filament ships compiled assets
 # Empty: found on the PATH (PHP: the one running the update)
 # APP_UPDATE_PHP=/usr/bin/php8.4
 # APP_UPDATE_COMPOSER=/usr/local/bin/composer
+# APP_UPDATE_GIT=git
 ```
 
 From the CLI:
@@ -497,7 +503,7 @@ From the CLI:
 |---------|---------|
 | `php artisan app:update status` | Channel, installed and newest builds, last run |
 | `php artisan app:update check` | Look for a newer build now |
-| `php artisan app:update apply [--force]` | Update now |
+| `php artisan app:update apply [--force]` | Update now. `--auto` is the nightly run: it does nothing while automatic updates are off |
 | `php artisan app:update channel stable\|beta` | Switch channel |
 | `php artisan app:update auto on\|off` | Turn the nightly update on or off |
 

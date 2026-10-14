@@ -1318,6 +1318,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           <li><a href="#doc-compliance">Compliance</a></li>
           <li><a href="#doc-findings">Findings &amp; triage</a></li>
           <li><a href="#doc-digest">Weekly digest</a></li>
+          <li><a href="#doc-updates">Updates</a></li>
           <li><a href="#doc-api">API</a></li>
           <li><a href="#doc-modes">Scan modes</a></li>
           <li><a href="#doc-profiles">Scan profiles</a></li>
@@ -1333,7 +1334,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
           <p class="section-kicker">Documentation</p>
           <h2 class="section-title">Reference</h2>
           <p class="section-lead" style="margin-bottom:0">
-            Targets, repositories, how a link between them changes DAST and penetration tests, compliance scope, profiles, CLI, the ownership-first security model, and an honest look at Aikido, Detectify and the tools around them.
+            Targets, repositories, how a link between them changes DAST and penetration tests, compliance scope, profiles, CLI, self-updates, the ownership-first security model, and an honest look at Aikido, Detectify and the tools around them.
           </p>
         </header>
 
@@ -1493,7 +1494,7 @@ php artisan db:seed --class=DemoSeeder">Copy</button>
             <li>PHP <strong>8.3+</strong></li>
             <li>Composer</li>
             <li>SQLite <em>(default)</em> or MySQL / PostgreSQL</li>
-            <li><code>git</code> <em>(for repository clones)</em></li>
+            <li><code>git</code> <em>(for repository clones and <a class="link-inline" href="#doc-updates">updates</a>)</em></li>
             <li>Node.js <em>(optional — only for the Vite dev server; panel styles are plain CSS)</em></li>
           </ul>
           <div class="callout">
@@ -1865,6 +1866,147 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
           </div>
         </article>
 
+        <article class="doc-block" id="doc-updates">
+          <h3>Updates</h3>
+          <p>
+            Hackly keeps itself on the newest build of its channel. <strong>Settings → Updates</strong> shows the
+            installed release and build, the newest one, the nightly update and the last run with its log.
+            The current release is
+            <a class="link-inline" href="https://github.com/andreapollastri/hackly/releases/tag/1.0.0" target="_blank" rel="noopener">1.0.0</a>
+            (the <code>VERSION</code> file). Hackly has no roles: every user who can sign in can update it.
+          </p>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Channel</th>
+                  <th>Installs</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="strong">Stable <em>(default)</em></td>
+                  <td>Release tags (<code>1.2.3</code>, also <code>v1.2.3</code> or <code>1.2</code>), nothing in between</td>
+                </tr>
+                <tr>
+                  <td class="strong">Beta</td>
+                  <td>Every new commit on <code>main</code>, before it becomes a release</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:1rem">
+            An update never goes backwards: a build is installed only when it contains the installed commit.
+            Back on stable after beta, Hackly keeps its <code>main</code> build until a release contains it.
+            <strong>Force update</strong> reinstalls the newest build of the channel, or installs it when its
+            history differs. It never installs an older one.
+          </p>
+          <p>
+            Each update backs up the database (SQLite, MySQL, MariaDB or PostgreSQL), installs the build,
+            runs <code>composer install --no-dev</code>, migrates, rebuilds the caches, restarts the queue
+            workers and checks that the app boots. If a step fails, the previous code and the database come back.
+            The newest five backups are kept in <code>storage/app/updates/backups</code>, the full log in
+            <code>storage/app/updates/update.log</code>. There is no Node build: the panel runs on Filament's compiled assets.
+          </p>
+          <p>
+            <strong>Update to …</strong> and <strong>Force update</strong> start within a minute. With automatic
+            updates on, the nightly run is at <code>APP_UPDATE_TIME</code> (04:00). Both start from the scheduler,
+            so it has to be running:
+          </p>
+          <div class="code-block">
+            <div class="code-header"><span>crontab — the user that runs Hackly</span></div>
+            <pre><span class="tok-arg">* * * * *</span> <span class="tok-cmd">cd</span> <span class="tok-arg">/path/to/hackly</span> <span class="tok-cmd">&amp;&amp; php artisan schedule:run</span></pre>
+          </div>
+
+          <h4 style="margin-top:1.75rem">Two kinds of install</h4>
+          <ul>
+            <li><strong>A git checkout</strong> (<code>git clone</code>): the build is checked out in place (detached), in maintenance mode while it is built and migrated. Tracked files changed by hand stop the update; Force update discards them</li>
+            <li><strong>A release of a deploy</strong> (<code>releases/</code>, <code>current</code>, <code>shared/</code>, as Cipi and Deployer make them): the build goes into <code>releases/&lt;build&gt;</code> next to the running one and shares its <code>.env</code> and <code>storage</code>. <code>current</code> points at it once it is migrated, and Cipi's workers restart on it. Of its own releases Hackly keeps the live one, the previous one and one more</li>
+          </ul>
+          <p style="margin-top:1rem">
+            Anything else shows a notice on the page: update it the way it was installed. Updates are on by
+            default only with <code>APP_ENV=production</code>; a local checkout is updated with git.
+            The user that runs the scheduler needs <code>git</code>, <code>composer</code> and the database client
+            (<code>mysqldump</code> / <code>mysql</code> or <code>pg_dump</code> / <code>psql</code>) on its <code>PATH</code>.
+          </p>
+          <div class="callout">
+            Installed before 1.0.0? That version has no updater: update it by hand one last time, the way you
+            installed it (<code>git pull</code>, <code>composer install --no-dev</code>,
+            <code>php artisan migrate --force</code>, or a redeploy), and add the scheduler. From then on it updates itself.
+          </div>
+
+          <h4 style="margin-top:1.75rem">Configuration</h4>
+          <div class="code-block">
+            <div class="code-header">
+              <span>.env</span>
+              <button class="copy-btn" type="button" data-copy="APP_UPDATES=true
+APP_UPDATE_REPOSITORY=https://github.com/andreapollastri/hackly.git
+APP_UPDATE_CHANNEL=stable
+APP_UPDATE_AUTO=true
+APP_UPDATE_TIME=04:00
+APP_UPDATE_BACKUP=true
+APP_UPDATE_ASSETS=false">Copy</button>
+            </div>
+            <pre><span class="tok-cmt"># Default: on when APP_ENV=production</span>
+APP_UPDATES=true
+APP_UPDATE_REPOSITORY=https://github.com/andreapollastri/hackly.git
+
+<span class="tok-cmt"># Until changed on the Updates page</span>
+APP_UPDATE_CHANNEL=stable
+APP_UPDATE_AUTO=true
+
+<span class="tok-cmt"># Nightly update, in the application timezone</span>
+APP_UPDATE_TIME=04:00
+<span class="tok-cmt"># Database backup before every update</span>
+APP_UPDATE_BACKUP=true
+<span class="tok-cmt"># No npm build: Filament ships its compiled assets</span>
+APP_UPDATE_ASSETS=false
+
+<span class="tok-cmt"># Empty: found on the PATH (PHP: the one running the update)</span>
+<span class="tok-cmt"># APP_UPDATE_PHP=/usr/bin/php8.4</span>
+<span class="tok-cmt"># APP_UPDATE_COMPOSER=/usr/local/bin/composer</span>
+<span class="tok-cmt"># APP_UPDATE_GIT=git</span></pre>
+          </div>
+
+          <h4 style="margin-top:1.75rem">From the CLI</h4>
+          <div class="table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">app:update status</td>
+                  <td>Channel, installed and newest builds, last run</td>
+                </tr>
+                <tr>
+                  <td class="mono">app:update check</td>
+                  <td>Look for a newer build now</td>
+                </tr>
+                <tr>
+                  <td class="mono">app:update apply</td>
+                  <td>Update now (<code>--force</code> as on the page; <code>--auto</code> is the nightly run, which does nothing while automatic updates are off)</td>
+                </tr>
+                <tr>
+                  <td class="mono">app:update channel</td>
+                  <td><code>stable</code> or <code>beta</code>: switch channel</td>
+                </tr>
+                <tr>
+                  <td class="mono">app:update auto</td>
+                  <td><code>on</code> or <code>off</code>: the nightly update</td>
+                </tr>
+                <tr>
+                  <td class="mono">app:update pending</td>
+                  <td>Run by the scheduler every minute: starts the update asked for on the Updates page</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
         <article class="doc-block" id="doc-api">
           <h3>API</h3>
           <p>
@@ -2048,12 +2190,16 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
                   <td>Refresh Nuclei templates, the Trivy database, and Semgrep rules. Scheduled daily at 03:30</td>
                 </tr>
                 <tr>
+                  <td class="mono">app:update</td>
+                  <td>Self-update: <code>status</code>, <code>check</code>, <code>apply [--force]</code>, <code>channel stable|beta</code>, <code>auto on|off</code>. See <a class="link-inline" href="#doc-updates">Updates</a></td>
+                </tr>
+                <tr>
                   <td class="mono">queue:work</td>
                   <td>Process scan jobs</td>
                 </tr>
                 <tr>
                   <td class="mono">schedule:work</td>
-                  <td>Hourly output cleanup, the Sunday digest, and the daily Nuclei / Trivy / Semgrep refresh (or cron <code>schedule:run</code>)</td>
+                  <td>Hourly output cleanup, the Sunday digest, the daily Nuclei / Trivy / Semgrep refresh, and updates (or cron <code>schedule:run</code>)</td>
                 </tr>
               </tbody>
             </table>
@@ -2064,6 +2210,7 @@ php artisan hackly:repo-scan owner/repo --include-targets">Copy</button>
           <h3>Configuration</h3>
           <p>
             Primary config: <code>config/hackly.php</code> — override via <code>.env</code>.
+            Updates have their own settings in <code>config/updates.php</code>: see <a class="link-inline" href="#doc-updates">Updates</a>.
           </p>
           <div class="code-block">
             <div class="code-header">
@@ -2180,8 +2327,9 @@ HACKLY_CHECKOV=checkov
             <li>Store GitHub PATs only via the <strong>GitHub tokens</strong> UI</li>
             <li>Run both install scripts on the scan worker host, then <code>hackly:check-binaries</code> as the queue user</li>
             <li>Set <code>HACKLY_EGRESS_IP</code> to the address operators should allowlist</li>
-            <li>Keep the scheduler running so the Sunday digest is sent and <code>hackly:update-databases</code> refreshes Nuclei, Trivy, and Semgrep data daily</li>
+            <li>Keep the scheduler running so the Sunday digest is sent, <code>hackly:update-databases</code> refreshes Nuclei, Trivy, and Semgrep data daily, and <a class="link-inline" href="#doc-updates">updates</a> run</li>
             <li>Run a persistent <code>queue:work</code>, and <code>schedule:work</code> or cron <code>schedule:run</code></li>
+            <li>Install from a <code>git clone</code> or deploy with Cipi / Deployer, so Hackly can update itself; give the scheduler's user <code>git</code>, <code>composer</code> and the database client tools</li>
           </ul>
           <p style="margin-top:1rem">
             Source and issues:
@@ -2195,6 +2343,7 @@ HACKLY_CHECKOV=checkov
   <footer>
     <div>
       &copy; 2026 <a href="https://andreapollastri.net" target="_blank" rel="noopener" style="margin-left:0">Andrea Pollastri</a> — MIT License
+      — <a href="https://github.com/andreapollastri/hackly/releases/tag/1.0.0" target="_blank" rel="noopener" style="margin-left:0">Release 1.0.0</a>
     </div>
     <div>
       <a href="https://github.com/andreapollastri/hackly" target="_blank" rel="noopener">GitHub</a>
