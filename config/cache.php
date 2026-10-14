@@ -131,6 +131,12 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    // Only the dates Filament keeps with an email sign-in code (its expiry). With no class
+    // allowed, the expiry came back incomplete and every code was rejected as invalid.
+    'serializable_classes' => [
+        Carbon\Carbon::class,
+        Carbon\CarbonImmutable::class,
+        Illuminate\Support\Carbon::class,
+    ],
 
 ];
