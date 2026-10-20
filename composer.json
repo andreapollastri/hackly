@@ -7,7 +7,6 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
-        "andreapollastri/checkin-client": "@dev",
         "andreapollastri/checkpoint": "^1.2",
         "barryvdh/laravel-dompdf": "^3.1",
         "cipi/agent": "^1.5",
@@ -90,13 +89,5 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "repositories": [{
-        "name": "checkin-client",
-        "type": "path",
-        "url": "../checkin-client",
-        "options": {
-            "symlink": true
-        }
-    }]
+    "prefer-stable": true
 }
